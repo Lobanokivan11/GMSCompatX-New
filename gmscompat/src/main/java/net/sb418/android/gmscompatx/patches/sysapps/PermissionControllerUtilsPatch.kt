@@ -27,7 +27,7 @@ import net.sb418.android.gmscompatx.util.MethodFinder
 internal object PermissionControllerUtilsPatch : IPatch, XC_MethodHook() {
 	override fun install() {
 		XposedBridge.hookMethod(
-			MethodFinder.findMethodExactKt(KotlinUtils::class, "grantRuntimePermission",
+			MethodFinder.findMethodExact("com.android.permissioncontroller.permission.model.AppPermissionGroup", "grantRuntimePermission",
 				Application::class, LightPermission::class, Boolean::class, LightAppPermGroup::class),
 			this
 		)
