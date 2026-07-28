@@ -7,7 +7,6 @@ package net.sb418.android.gmscompatx.patches.sysapps
 
 import android.content.ContentValues
 import android.provider.Downloads
-import com.android.providers.downloads.DownloadProvider
 import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XposedBridge
 import net.sb418.android.gmscompatx.patches.IPatch
