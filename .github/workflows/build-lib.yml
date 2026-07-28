@@ -38,19 +38,13 @@ jobs:
         mkdir -p prebuilts/build-tools
         git clone https://github.com/GrapheneOS/platform_packages_apps_GmsCompat.git packages/apps/GmsCompat
 
-    - name: Check
-      run: |
-        pwd
-        ls -laAR build/make/
-        ls -laAR build/soong/
-
     - name: Run Soong Bootstrap & Build
       run: |
         # 1. Initialize the Android platform build environment variables
         source build/make/envsetup.sh
         
         # 2. Build both modules explicitly using the fallback architecture
-        make GmsCompat GmsCompatLib || ./build/soong/soong_ui.bash --make-mode GmsCompat GmsCompatLib
+        ./build/soong/soong_ui.bash --make-mode GmsCompat GmsCompatLib
 
     - name: Build Config
       run: |
