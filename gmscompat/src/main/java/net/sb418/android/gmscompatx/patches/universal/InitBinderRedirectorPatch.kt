@@ -11,6 +11,8 @@ import android.content.ServiceConnection
 import android.os.Handler
 import android.os.UserHandle
 import android.util.ArraySet
+import java.util.concurrent.ConcurrentHashMap
+import java.util.Collections
 import com.android.internal.gmscompat.BinderRedirector
 import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XposedBridge
