@@ -18,6 +18,7 @@ import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XposedBridge
 import net.sb418.android.gmscompatx.patches.IPatch
 import net.sb418.android.gmscompatx.util.MethodFinder
+import com.android.permissioncontroller.permission.model.AppPermissionGroup
 
 /**
  * Purpose: restart GMS apps when a new permission is granted.
@@ -27,10 +28,10 @@ import net.sb418.android.gmscompatx.util.MethodFinder
 internal object PermissionControllerUtilsPatch : IPatch, XC_MethodHook() {
 	override fun install() {
     	runCatching {
-        	val classLoader = Thread.currentThread().contextClassLoader ?: XposedBridge.BOOTCLASS_LOADER
+        	val classLoader = Thread.currentThread().contextClassLoader ?: ClassLoader.getSystemClassLoader()
 	        XposedBridge.hookMethod(
 	            MethodFinder.findMethodExact(
-    	            "com.android.permissioncontroller.permission.model.AppPermissionGroup",
+    	            AppPermissionGroup::class,
         	        classLoader,
             	    "grantRuntimePermissions",
                 	Boolean::class.javaPrimitiveType ?: Boolean::class.java,
