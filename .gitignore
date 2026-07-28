@@ -1,0 +1,15 @@
+# Generic / OS-specific
+.DS_Store
+
+# Gradle
+.gradle
+build
+.externalNativeBuild
+.cxx
+
+# IDEA / Android Studio
+/.idea
+/captures
+
+# AGP
+local.properties

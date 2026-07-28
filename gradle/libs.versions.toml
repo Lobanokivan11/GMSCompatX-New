@@ -1,0 +1,25 @@
+[versions]
+# Android Gradle plugin
+agp = "8.0.2"
+# Kotlin language
+kotlin = "1.9.0"
+# Hidden API Refine plugin
+refine = "4.3.0"
+# Xposed API
+xposed = "82"
+
+[libraries]
+andx-annotation = { module = "androidx.annotation:annotation-jvm", version = "1.6.0" }
+fastutil = { module = "it.unimi.dsi:fastutil", version = "8.5.12" }
+guava = { module = "com.google.guava:guava", version = "32.1.1-android" }
+refine-annotation = { module = "dev.rikka.tools.refine:annotation", version.ref = "refine" }
+refine-annotationprocessor = { module = "dev.rikka.tools.refine:annotation-processor", version.ref = "refine" }
+refine-runtime = { module = "dev.rikka.tools.refine:runtime", version.ref = "refine" }
+xposed = { module = "de.robv.android.xposed:api", version.ref = "xposed" }
+
+[plugins]
+android-app = { id = "com.android.application", version.ref = "agp" }
+android-lib = { id = "com.android.library", version.ref = "agp" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+refine = { id = "dev.rikka.tools.refine", version.ref = "refine" }
