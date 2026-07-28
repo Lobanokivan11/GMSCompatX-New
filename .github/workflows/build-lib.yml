@@ -40,17 +40,20 @@ jobs:
 
     - name: Run Soong Bootstrap & Build
       run: |
-        # Initialize the Android platform build environment
+        # 1. Initialize the Android platform build environment variables
         source build/make/envsetup.sh
-        make GmsCompat || ./build/soong/soong_ui.bash --make-mode GmsCompat
+        
+        # 2. Build both modules explicitly using the fallback architecture
+        make GmsCompat GmsCompatLib || ./build/soong/soong_ui.bash --make-mode GmsCompat GmsCompatLib
 
     - name: Build Config
       run: |
         cd config-holder
         ./gradlew build
 
-    - name: Upload Compiled APK Artifact
+    - name: Find and Upload All Compiled APK Files
       uses: actions/upload-artifact@v4
       with:
-        name: GmsCompat-APK
-        path: out/target/product/*/system/priv-app/GmsCompat/*.apk
+        name: GrapheneOS-Compat-APKs
+        # Captures GmsCompat.apk, GmsCompatConfig.apk, and any other sub-module APKs
+        path: out/target/product/**/*.apk
