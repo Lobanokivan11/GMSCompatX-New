@@ -103,10 +103,10 @@ public final class PlayStoreHooks {
 
 		switch (pkg) {
 			case GmsInfo.PACKAGE_GMS_CORE:
-				params.maxAllowedVersion = GmsHooks.config().maxGmsCoreVersion;
+				// params.maxAllowedVersion = GmsHooks.config().maxGmsCoreVersion;
 				break;
 			case GmsInfo.PACKAGE_PLAY_STORE:
-				params.maxAllowedVersion = GmsHooks.config().maxPlayStoreVersion;
+				// params.maxAllowedVersion = GmsHooks.config().maxPlayStoreVersion;
 				break;
 		}
 	}
