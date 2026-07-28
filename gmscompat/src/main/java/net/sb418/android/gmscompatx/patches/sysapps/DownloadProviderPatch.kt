@@ -20,10 +20,17 @@ import net.sb418.android.gmscompatx.util.MethodFinder
  */
 internal object DownloadProviderPatch : IPatch, XC_MethodHook() {
 	override fun install() {
-		XposedBridge.hookMethod(
-			MethodFinder.findMethodExactKt(DownloadProvider::class, "checkInsertPermissions", ContentValues::class),
-			this
-		)
+		runCatching {
+			val classLoader = Thread.currentThread().contextClassLoader ?: ClassLoader.getSystemClassLoader()
+			val method = MethodFinder.findMethodExact(
+				"com.android.providers.downloads.DownloadProvider",
+				classLoader,
+				"checkInsertPermissions",
+				ContentValues::class.java
+			)
+
+			XposedBridge.hookMethod(method, this)
+		}
 	}
 
 	override fun beforeHookedMethod(param: MethodHookParam) {
