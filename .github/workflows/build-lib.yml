@@ -34,7 +34,7 @@ jobs:
       run: |
         # Clone the Soong build system framework into the workspace root
         git clone https://android.googlesource.com/platform/build/soong build/soong
-        git clone https://android.googlesource.com/toolchain/make build/make
+        git clone https://android.googlesource.com/platform/build build/make
         mkdir -p prebuilts/build-tools
         git clone https://github.com/GrapheneOS/platform_packages_apps_GmsCompat.git packages/apps/GmsCompat
 
