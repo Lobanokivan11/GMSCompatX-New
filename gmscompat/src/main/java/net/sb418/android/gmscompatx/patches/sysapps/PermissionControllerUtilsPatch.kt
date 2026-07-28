@@ -26,11 +26,20 @@ import net.sb418.android.gmscompatx.util.MethodFinder
  */
 internal object PermissionControllerUtilsPatch : IPatch, XC_MethodHook() {
 	override fun install() {
-		XposedBridge.hookMethod(
-				MethodFinder.findMethodExactKt(KotlinUtils::class, "grantRuntimePermission",
-				Application::class, LightPermission::class, Boolean::class, LightAppPermGroup::class),
-			this
-		)
+    	runCatching {
+        	val classLoader = Thread.currentThread().contextClassLoader ?: XposedBridge.BOOTCLASS_LOADER
+	        XposedBridge.hookMethod(
+	            MethodFinder.findMethodExact(
+    	            "com.android.permissioncontroller.permission.model.AppPermissionGroup",
+        	        classLoader,
+            	    "grantRuntimePermissions",
+                	Boolean::class.javaPrimitiveType ?: Boolean::class.java,
+    	            Boolean::class.javaPrimitiveType ?: Boolean::class.java,
+	                Class.forName("[Ljava.lang.String;", false, classLoader)
+				),
+				this
+			)
+		}
 	}
 
 	override fun afterHookedMethod(param: MethodHookParam) {
