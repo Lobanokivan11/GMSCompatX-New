@@ -30,7 +30,7 @@ internal object PackageInstallerSessionPatch : IPatch, XC_MethodHook() {
 
 	fun allowUnknownGmsUpdates(): Boolean {
 		// TODO: implement actual check
-		return false
+		return true
 	}
 
 	override fun afterHookedMethod(param: MethodHookParam) {
