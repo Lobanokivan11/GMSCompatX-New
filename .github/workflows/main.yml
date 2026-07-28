@@ -42,3 +42,12 @@ jobs:
       with:
         name: GMSCompatX-Debug-APK
         path: app/build/outputs/apk/debug/*.apk
+    - name: Nightly build
+      uses: softprops/action-gh-release@v1
+      with:
+        body: Debug Builds
+        tag_name: github_nightly_debug
+        name: Debug Builds
+        files: |
+           app/build/outputs/apk/debug/app-debug.apk
+           app/build/outputs/apk/release/app-release.apk
