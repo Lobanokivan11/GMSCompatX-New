@@ -1,0 +1,56 @@
+name: Build GmsCompat with Soong
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+  schedule:
+    - cron: "0 * * * *"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Set up Java Development Kit
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
+    - name: Install Build Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y git-core gnupg flex bison build-essential zip curl zlib1g-dev \
+          lib32ncurses5-dev x11proto-core-dev libx11-dev lib32z1-dev libgl1-mesa-dev \
+          libxml2-utils xsltproc unzip fontconfig python3
+
+    - name: Fetch Minimal Build Tools & Soong
+      run: |
+        # Clone the Soong build system framework into the workspace root
+        git clone https://android.googlesource.com/platform/build/soong build/soong
+        git clone https://android.googlesource.com/toolchain/make build/make
+        mkdir -p prebuilts/build-tools
+        git clone https://github.com/GrapheneOS/platform_packages_apps_GmsCompat.git packages/apps/GmsCompat
+
+    - name: Run Soong Bootstrap & Build
+      run: |
+        # Initialize the Android platform build environment
+        source build/make/envsetup.sh
+        make GmsCompat || ./build/soong/soong_ui.bash --make-mode GmsCompat
+
+    - name: Build Config
+      run: |
+        cd config-holder
+        ./gradlew build
+
+    - name: Upload Compiled APK Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: GmsCompat-APK
+        path: out/target/product/*/system/priv-app/GmsCompat/*.apk
