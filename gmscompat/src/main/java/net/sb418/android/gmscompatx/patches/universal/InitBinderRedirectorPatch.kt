@@ -69,8 +69,7 @@ internal object InitBinderRedirectorPatch : IPatch {
 	 * Tracks service [Intents][Intent] and their associated [Contexts][Context] while they are in `bindServiceCommon()`.
 	 * Uses strong references - failure to drop entries will result in a memory leak!
 	 */
-	private val currentlyBindingServices = ArraySet<CtxIntentEntry>()
-
+	private val currentlyBindingServices: MutableSet<CtxIntentEntry> = Collections.newSetFromMap(ConcurrentHashMap<CtxIntentEntry, Boolean>())
 
 	private object ContextImpl_bindServiceCommon : XC_MethodHook() {
 		override fun beforeHookedMethod(param: MethodHookParam) {
