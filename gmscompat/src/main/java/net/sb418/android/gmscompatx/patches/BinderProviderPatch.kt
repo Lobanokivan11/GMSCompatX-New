@@ -38,6 +38,7 @@ object BinderProviderPatch {
                             Log.d(TAG, "Bypassed Android Sandbox (Before): Intercepted call for type: $methodArg")
                         } catch (t: Throwable) { 
                             Log.e(TAG, "GmsCompat API has changed. BinderGms2Gca is unavailable on this OS version.", t)
+							return
                         }
                         Log.d(TAG, "Successfully processed original Binder check from GmsCompat")
                     } else {
