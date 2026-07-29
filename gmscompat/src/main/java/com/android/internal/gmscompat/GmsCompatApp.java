@@ -149,20 +149,33 @@ public final class GmsCompatApp {
 
 	private static IBinder getBinder(int which) {
 		String authority = PKG_NAME + ".BinderProvider";
-		try {
-			Bundle bundle = GmsCompat.appContext().getContentResolver()
-				.call(authority, Integer.toString(which), null, null);
-			if (bundle == null) {
-				throw new RemoteException("BinderProvider returned null bundle");
+		int retry = 0;
+		
+		while (retry < 5) {
+			try {
+				Bundle bundle = GmsCompat.appContext().getContentResolver()
+					.call(authority, Integer.toString(which), null, null);
+				
+				if (bundle != null) {
+					IBinder binder = bundle.getBinder(KEY_BINDER);
+					if (binder != null) {
+						DeathRecipient.register(binder);
+						Log.d(TAG, "Successfully acquired Binder on retry: " + retry);
+						return binder;
+					}
+				}
+			} catch (Throwable t) {
+				Log.w(TAG, "Transient error connecting to BinderProvider, retrying...", t);
 			}
-			IBinder binder = bundle.getBinder(KEY_BINDER);
-			DeathRecipient.register(binder);
-			return binder;
-		} catch (Throwable t) {
-			Log.e(TAG, "call to " + authority + " failed", t);
-			System.exit(1);
-			return null;
+			
+			retry++;
+			try {
+				Thread.sleep(500); 
+			} catch (InterruptedException ignored) {}
 		}
+		Log.e(TAG, "Fatal: call to " + authority + " failed after 5 retries");
+		System.exit(1);
+		return null;
 	}
 
 	static class DeathRecipient implements IBinder.DeathRecipient {
