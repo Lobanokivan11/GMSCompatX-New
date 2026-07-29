@@ -8,24 +8,23 @@ package net.sb418.android.gmscompatx.patches.system_server
 import android.os.IBinder
 import android.util.Log
 import de.robv.android.xposed.XC_MethodHook
+import de.robv.android.xposed.XposedBridge
 import de.robv.android.xposed.XposedHelpers
 import net.sb418.android.gmscompatx.patches.IPatch
 import net.sb418.android.gmscompatx.patches.SystemServerPatches.TAG
 
 object ServiceManagerPublishPatch : IPatch {
     override fun install() {
-        XposedHelpers.findAndHookMethod(
-            "com.android.server.am.ActivityManagerService",
-            null,
-            "systemReady",
-            Runnable::class.java,
-            com.android.server.utils.TimingsTraceAndSlog::class.java,
-            object : XC_MethodHook() {
+        try {
+            val amsClass = Class.forName("com.android.server.am.ActivityManagerService")
+            XposedBridge.hookAllMethods(amsClass, "systemReady", object : XC_MethodHook() {
                 override fun beforeHookedMethod(param: MethodHookParam) {
                     publishGmsCompatService()
                 }
-            }
-        )
+            })
+        } catch (t: Throwable) {
+            Log.e(TAG, "GMSCompatX: Failed to find or hook ActivityManagerService#systemReady", t)
+        }
     }
 
     private fun publishGmsCompatService() {
