@@ -35,9 +35,9 @@ object BinderProviderPatch {
                         	replyBundle.putBinder(KEY_BINDER, rawBinder)
                 	        param.result = replyBundle
                     	    Log.d(TAG, "Bypassed Android Sandbox (Before): Intercepted call for type: $methodArg")
-	                    } catch (e: Exception) {
-    	                    Log.e(TAG, "Error resolving Binder inside hook", e)
-        	            }
+	                    } catch (t: Throwable) { 
+							Log.e(TAG, "Error resolving Binder inside hook (Safely bypassed)", t)
+						}
 						Log.d(TAG, "Successfully intercepted original Binder from GmsCompat")
         			} else {
             			Log.w(TAG, "Binder not found in original result bundle")
