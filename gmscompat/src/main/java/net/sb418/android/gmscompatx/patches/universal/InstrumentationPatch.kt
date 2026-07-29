@@ -31,21 +31,28 @@ internal object InstrumentationPatch : IPatch, XC_MethodHook() {
 		// NOTE: there are two implementations of newApplication, so we scan the arguments for the Context
 		for (arg in param.args) {
 			if (arg is Context) {
-				val classLoader = arg.classLoader ?: return
-				
 				try {
-					val gmsCompatAppClass = Class.forName("com.android.internal.gmscompat.GmsCompatApp", false, classLoader)
-					val iGca2GmsClass = Class.forName("com.android.internal.gmscompat.IGca2Gms", false, classLoader)
-					val fileProxyClass = Class.forName("com.android.internal.gmscompat.dynamite.server.IFileProxyService", false, classLoader)
-					gmsCompatAppClass.getMethod("connectGmsCore", String::class.java, iGca2GmsClass, fileProxyClass)
+					val gmsHooksClass = GmsHooks::class.java
+					val hasNewApi = gmsHooksClass.declaredMethods.any { method ->
+						method.parameterTypes.any { paramType ->
+							paramType.name.contains("IFileProxyService")
+						}
+					}
+					val hasNewGmsCompatApp = try {
+						Class.forName("app.grapheneos.gmscompat.BinderClientOfGmsCore2Gca", false, arg.classLoader)
+						true
+					} catch (e: ClassNotFoundException) {
+						false
+					}
+					if (hasNewApi && !hasNewGmsCompatApp) {
+						Log.e(TAG, "CRITICAL: GmsCompat version mismatch detected! Blocked 'GmsCompat.maybeEnable' to prevent AbstractMethodError crash.")
+						return
+					}
 					GmsCompat.maybeEnable(arg)
-					
-				} catch (e: ClassNotFoundException) {
-					Log.w(TAG, "GmsCompat components are missing, skipping initialization.")
-				} catch (e: NoSuchMethodException) {
-					Log.e(TAG, "CRITICAL: GmsCompat version mismatch detected! Blocked 'GmsCompat.maybeEnable' to prevent AbstractMethodError crash.", e)
+
 				} catch (t: Throwable) {
-					Log.e(TAG, "Unexpected error during GmsCompat validation check", t)
+					Log.e(TAG, "Failed to verify GmsCompat signatures safely, falling back", t)
+					try { GmsCompat.maybeEnable(arg) } catch (e: Throwable) {}
 				}
 				return
 			}
