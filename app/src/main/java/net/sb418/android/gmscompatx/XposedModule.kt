@@ -67,8 +67,7 @@ class XposedModule : IXposedHookZygoteInit, IXposedHookLoadPackage {
 	private fun onApplicationLoad(param: LoadPackageParam) {
 		val packageName: String = param.packageName
 
-		val classesToInject = when (packageName) {
-			// GmsCompat app - relies on many internal classes
+		val classNamesToInject: Array<String> = when (packageName) {
 			"app.grapheneos.gmscompat" -> arrayOf(
 				"com.android.internal.gmscompat.IClientOfGmsCore2Gca",
 				"com.android.internal.gmscompat.IClientOfGmsCore2Gca\$Stub",
@@ -78,8 +77,7 @@ class XposedModule : IXposedHookZygoteInit, IXposedHookLoadPackage {
 				"com.android.internal.gmscompat.GmsCompatConfig",
 				"com.android.internal.gmscompat.dynamite.server.IFileProxyService"
 			)
-			// all other apps
-			else -> emptyArray<String>()
+			else -> emptyArray()
 		}
 
 		// inject classes into app
@@ -107,12 +105,12 @@ class XposedModule : IXposedHookZygoteInit, IXposedHookLoadPackage {
 	/**
 	 * Inject our own [classes] into the [target] class loader, by replacing its parent.
 	 */
-	private fun injectAppClassLoader(target: ClassLoader, classes: Array<KClass<*>>) {
+	private fun injectAppClassLoader(target: ClassLoader, classes: Array<Class<*>>) {
 		val originalParent = XposedHelpers.getObjectField(target, "parent") as ClassLoader
 		val newLoaderBuilder = StaticClassLoader.Builder(originalParent)
 
 		for (clazz in classes) {
-			newLoaderBuilder.addClass(clazz.java)
+			newLoaderBuilder.addClass(clazz)
 		}
 
 		val newLoader = newLoaderBuilder.build()
