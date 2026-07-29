@@ -28,13 +28,13 @@ object BinderProviderPatch {
                     if (binder != null) {
                         val methodArg = param.args.getOrNull(1) as? String ?: "0"
                         try {
-                            val binderClass = Class.forName("app.grapheneos.gmscompat.BinderGms2Gca", false, classLoader)
-                            val instanceField = binderClass.getDeclaredField("INSTANCE")
-                            instanceField.isAccessible = true
-                            val rawBinder = instanceField.get(null) as IBinder
-                            val replyBundle = Bundle()
-                            replyBundle.putBinder(KEY_BINDER, rawBinder)        
-                            param.result = replyBundle
+							val binderClass = Class.forName("app.grapheneos.gmscompat.BinderGms2Gca", false, classLoader)
+    						val instanceField = binderClass.getDeclaredField("INSTANCE")
+						    instanceField.isAccessible = true
+						    val rawBinder = instanceField.get(null) as IBinder
+	    					val replyBundle = Bundle()
+					    	replyBundle.putBinder(KEY_BINDER, rawBinder)        
+						    param.result = replyBundle
                             Log.d(TAG, "Bypassed Android Sandbox (Before): Intercepted call for type: $methodArg")
                         } catch (t: Throwable) { 
                             Log.e(TAG, "GmsCompat API has changed. BinderGms2Gca is unavailable on this OS version.", t)
