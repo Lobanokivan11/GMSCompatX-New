@@ -41,7 +41,6 @@ class XposedModule : IXposedHookZygoteInit, IXposedHookLoadPackage {
 		// apply gmscompat patch to fix error
 		if (param.packageName == "app.grapheneos.gmscompat")
 			net.sb418.android.gmscompatx.patches.BinderProviderPatch.install(param.classLoader)
-			return
 		// initialize patch context
 		PatchContext.packageName = param.packageName
 		PatchContext.processName = param.processName
