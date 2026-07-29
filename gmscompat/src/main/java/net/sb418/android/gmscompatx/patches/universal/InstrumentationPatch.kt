@@ -17,7 +17,7 @@ import net.sb418.android.gmscompatx.patches.UniversalPatches.TAG
 import java.util.concurrent.atomic.AtomicBoolean
 
 internal object InstrumentationPatch : IPatch, XC_MethodHook() {
-	private val isProxyHookInstalled = AtomicBoolean(false)
+	private val isGmsCompatAppHookInstalled = AtomicBoolean(false)
 
 	override fun install() {
 		XposedBridge.hookAllMethods(Instrumentation::class.java, "newApplication", this)
@@ -27,59 +27,51 @@ internal object InstrumentationPatch : IPatch, XC_MethodHook() {
 		for (arg in param.args) {
 			if (arg is Context) {
 				val classLoader = arg.classLoader ?: return
-				if (isProxyHookInstalled.compareAndSet(false, true)) {
+				if (isGmsCompatAppHookInstalled.compareAndSet(false, true)) {
 					try {
-						val proxyClass = Class.forName("com.android.internal.gmscompat.IGms2Gca\$Stub\$Proxy", false, classLoader)
-						val fileProxyClass = Class.forName("com.android.internal.gmscompat.dynamite.server.IFileProxyService", false, classLoader)
-						val connectGmsCoreMethod = XposedHelpers.findMethodExact(proxyClass, "connectGmsCore", String::class.java, Class.forName("com.android.internal.gmscompat.IGca2Gms", false, classLoader), fileProxyClass)
-						
-						XposedBridge.hookMethod(connectGmsCoreMethod, object : XC_MethodHook() {
-							override fun beforeHookedMethod(proxyParam: MethodHookParam) {
-								var isGmsCompatApkUpdated = false
+						val gmsCompatAppClass = Class.forName("com.android.internal.gmscompat.GmsCompatApp", false, classLoader)
+						XposedBridge.hookAllMethods(gmsCompatAppClass, "connect", object : XC_MethodHook() {
+							override fun beforeHookedMethod(connectParam: MethodHookParam) {
 								try {
-									Class.forName("app.grapheneos.gmscompat.BinderClientOfGmsCore2Gca", false, classLoader)
-									isGmsCompatApkUpdated = true
-								} catch (e: ClassNotFoundException) {}
-								if (!isGmsCompatApkUpdated) {
-									Log.w(TAG, "GMSCompatX: Client proxy intercepted! Target APK is old. Redirecting to 2-param connectGmsCore call.")
-									
-									val mRemote = XposedHelpers.getObjectField(proxyParam.thisObject, "mRemote") as android.os.IBinder
-									val processName = proxyParam.args[0] as String
-									val iGca2GmsInstance = proxyParam.args[1]
-									val data = android.os.Parcel.obtain()
-									val reply = android.os.Parcel.obtain()
+									var isGmsCompatApkUpdated = false
 									try {
-										data.writeInterfaceToken("com.android.internal.gmscompat.IGms2Gca")
-										data.writeString(processName)
-										data.writeStrongBinder(XposedHelpers.callMethod(iGca2GmsInstance, "asBinder") as android.os.IBinder)
-										mRemote.transact(2, data, reply, 0)
-										reply.readException()
-										if (reply.readInt() != 0) {
-											val configClass = Class.forName("com.android.internal.gmscompat.GmsCompatConfig", false, classLoader)
-											val creatorField = configClass.getField("CREATOR")
-											val creator = creatorField.get(null)
-											proxyParam.result = XposedHelpers.callMethod(creator, "createFromParcel", reply)
-										} else {
-											proxyParam.result = null
+										Class.forName("app.grapheneos.gmscompat.BinderClientOfGmsCore2Gca", false, classLoader)
+										isGmsCompatApkUpdated = true
+									} catch (e: ClassNotFoundException) {}
+									if (!isGmsCompatApkUpdated) {
+										val iGca2GmsClass = Class.forName("com.android.internal.gmscompat.IGca2Gms", false, classLoader)
+										val binderField = XposedHelpers.findFieldIfExists(gmsCompatAppClass, "gms2Gca")
+										if (binderField != null) {
+											val gms2GcaBinder = binderField.get(null)
+											
+											if (gms2GcaBinder != null) {
+												Log.w(TAG, "GMSCompatX: Mismatch detected in GmsCompatApp! Old APK running on New OS. Forcing safe downgrade redirect.")
+												val processName = connectParam.args.getOrNull(0) as? String ?: ""
+												val iGca2GmsInstance = connectParam.args.getOrNull(1)
+												
+												if (iGca2GmsInstance != null) {
+													val config = XposedHelpers.callMethod(gms2GcaBinder, "connectGmsCore", processName, iGca2GmsInstance)
+													connectParam.result = config
+													return
+												}
+											}
 										}
-									} finally {
-										reply.recycle()
-										data.recycle()
 									}
+								} catch (t: Throwable) {
+									Log.e(TAG, "GMSCompatX: Error inside GmsCompatApp redirect shield", t)
 								}
 							}
 						})
-						Log.d(TAG, "GMSCompatX: Outgoing Client Proxy Hook successfully installed!")
+						Log.d(TAG, "GMSCompatX: Active Runtime GmsCompatApp Shield installed successfully!")
 					} catch (t: Throwable) {
-						Log.e(TAG, "GMSCompatX: Failed to install client proxy fallback hook", t)
-						isProxyHookInstalled.set(false)
+						Log.e(TAG, "GMSCompatX: Failed to dynamically inject GmsCompatApp redirection", t)
+						isGmsCompatAppHookInstalled.set(false)
 					}
 				}
-
 				try {
 					GmsCompat.maybeEnable(arg)
 				} catch (t: Throwable) {
-					Log.e(TAG, "GmsCompat.maybeEnable crashed", t)
+					Log.e(TAG, "GmsCompat.maybeEnable execution suppressed", t)
 				}
 				return
 			}
