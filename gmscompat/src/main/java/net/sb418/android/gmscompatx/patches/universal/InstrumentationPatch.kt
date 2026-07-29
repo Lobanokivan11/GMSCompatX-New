@@ -31,7 +31,22 @@ internal object InstrumentationPatch : IPatch, XC_MethodHook() {
 		// NOTE: there are two implementations of newApplication, so we scan the arguments for the Context
 		for (arg in param.args) {
 			if (arg is Context) {
-				GmsCompat.maybeEnable(arg)
+				val classLoader = arg.classLoader ?: return
+				
+				try {
+					val gmsCompatAppClass = Class.forName("com.android.internal.gmscompat.GmsCompatApp", false, classLoader)
+					val iGca2GmsClass = Class.forName("com.android.internal.gmscompat.IGca2Gms", false, classLoader)
+					val fileProxyClass = Class.forName("com.android.internal.gmscompat.dynamite.server.IFileProxyService", false, classLoader)
+					gmsCompatAppClass.getMethod("connectGmsCore", String::class.java, iGca2GmsClass, fileProxyClass)
+					GmsCompat.maybeEnable(arg)
+					
+				} catch (e: ClassNotFoundException) {
+					Log.w(TAG, "GmsCompat components are missing, skipping initialization.")
+				} catch (e: NoSuchMethodException) {
+					Log.e(TAG, "CRITICAL: GmsCompat version mismatch detected! Blocked 'GmsCompat.maybeEnable' to prevent AbstractMethodError crash.", e)
+				} catch (t: Throwable) {
+					Log.e(TAG, "Unexpected error during GmsCompat validation check", t)
+				}
 				return
 			}
 		}
