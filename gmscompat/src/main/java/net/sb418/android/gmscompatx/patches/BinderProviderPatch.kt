@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package net.sb418.android.gmscompatx.patches.gmscompat
+package net.sb418.android.gmscompatx.patches
 
 import android.os.Bundle
 import android.os.IBinder
