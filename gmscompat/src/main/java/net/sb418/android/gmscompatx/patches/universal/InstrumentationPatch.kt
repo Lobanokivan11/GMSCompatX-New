@@ -31,34 +31,14 @@ internal object InstrumentationPatch : IPatch, XC_MethodHook() {
 		// NOTE: there are two implementations of newApplication, so we scan the arguments for the Context
 		for (arg in param.args) {
 			if (arg is Context) {
-				val classLoader = arg.classLoader ?: return
 				try {
-					val gmsHooksClass = Class.forName("com.android.internal.gmscompat.GmsHooks", false, classLoader)
-					var hasNewApi = false
-					for (method in gmsHooksClass.declaredMethods) {
-						for (paramType in method.parameterTypes) {
-							if (paramType.name.contains("IFileProxyService")) {
-								hasNewApi = true
-								break
-							}
-						}
-						if (hasNewApi) break
-					}
-					val hasNewGmsCompatApp = try {
-						Class.forName("app.grapheneos.gmscompat.BinderClientOfGmsCore2Gca", false, classLoader)
-						true
-					} catch (e: ClassNotFoundException) {
-						false
-					}
-					if (hasNewApi && !hasNewGmsCompatApp) {
-						Log.e(TAG, "CRITICAL: GmsCompat version mismatch detected! Blocked 'GmsCompat.maybeEnable' to prevent AbstractMethodError crash.")
-						return
-					}
 					GmsCompat.maybeEnable(arg)
-
+				} catch (e: AbstractMethodError) {
+					Log.e(TAG, "CRITICAL: GmsCompat AIDL mismatch detected (AbstractMethodError)! Blocked crash to save system boot.", e)
+				} catch (e: LinkageError) {
+					Log.e(TAG, "CRITICAL: Linkage error occurred during GmsCompat initialization, suppressing to prevent bootloop.", e)
 				} catch (t: Throwable) {
-					Log.e(TAG, "Failed to verify GmsCompat signatures safely, falling back", t)
-					try { GmsCompat.maybeEnable(arg) } catch (e: Throwable) {}
+					Log.e(TAG, "Unexpected exception during GmsCompat.maybeEnable", t)
 				}
 				return
 			}
