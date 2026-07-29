@@ -22,47 +22,53 @@ object BinderProviderPatch {
     fun install(classLoader: ClassLoader) {
         try {
             val providerClass = Class.forName("app.grapheneos.gmscompat.BinderProvider", false, classLoader)
+            
             XposedBridge.hookAllMethods(providerClass, "call", object : XC_MethodHook() {
                 override fun afterHookedMethod(param: MethodHookParam) {
                     val resultBundle = param.result as? Bundle ?: return
                     val binder = resultBundle.getBinder(KEY_BINDER)
+                    
                     if (binder != null) {
                         val methodArg = param.args.getOrNull(1) as? String ?: "0"
                         if (isSignatureShieldInstalled.compareAndSet(false, true)) {
                             try {
                                 val binderGms2GcaClass = Class.forName("app.grapheneos.gmscompat.BinderGms2Gca", false, classLoader)
-                                XposedBridge.hookAllMethods(binderGms2GcaClass, "connectGmsCore", object : XC_MethodHook() {
-                                    override fun beforeHookedMethod(connectParam: MethodHookParam) {
-                                        try {
-                                            Log.w(TAG, "GMSCompatX: connectGmsCore call intercepted in active runtime! Resolving signature mismatch.")
-                                            
-                                            val instance = connectParam.thisObject
-                                            val args = connectParam.args
-                                            
-                                            val processName = args[0] as String
-                                            val callerBinderObject = args[1]
-                                            val fileProxyService = args.getOrNull(2)
-                                            val rawBinder: IBinder = if (callerBinderObject is IBinder) {
-                                                callerBinderObject
-                                            } else {
-                                                XposedHelpers.callMethod(callerBinderObject, "asBinder") as IBinder
+                                val connectGmsCoreMethod = binderGms2GcaClass.declaredMethods.find { it.name == "connectGmsCore" }
+                                
+                                if (connectGmsCoreMethod != null) {
+                                    XposedBridge.hookMethod(connectGmsCoreMethod, object : XC_MethodHook() {
+                                        override fun beforeHookedMethod(connectParam: MethodHookParam) {
+                                            try {
+                                                Log.w(TAG, "GMSCompatX: connectGmsCore call intercepted dynamically! Resolving parameters.")
+                                                val instance = connectParam.thisObject
+                                                val args = connectParam.args
+                                                val processName = args[0] as String
+                                                val callerBinderObject = args[1]
+                                                val fileProxyService = args.getOrNull(2)
+                                                val rawBinder: IBinder = if (callerBinderObject is IBinder) {
+                                                    callerBinderObject
+                                                } else {
+                                                    XposedHelpers.callMethod(callerBinderObject, "asBinder") as IBinder
+                                                }
+                                                if (fileProxyService != null) {
+                                                    XposedHelpers.setStaticObjectField(binderGms2GcaClass, "dynamiteFileProxyService", fileProxyService)
+                                                }
+                                                XposedHelpers.callMethod(instance, "connect", "com.google.android.gms", processName, rawBinder)
+                                                connectParam.result = null
+                                                
+                                                Log.d(TAG, "GMSCompatX: Dynamically bypassed signature mismatch and executed connect().")
+                                                return
+                                            } catch (t: Throwable) {
+                                                Log.e(TAG, "GMSCompatX: Error inside pure dynamic connectGmsCore shield", t)
                                             }
-                                            if (fileProxyService != null) {
-                                                XposedHelpers.setStaticObjectField(binderGms2GcaClass, "dynamiteFileProxyService", fileProxyService)
-                                            }
-                                            XposedHelpers.callMethod(instance, "connect", "com.google.android.gms", processName, rawBinder)
-                                            connectParam.result = null
-                                            
-                                            Log.d(TAG, "GMSCompatX: Signature mismatch successfully bypassed.")
-                                            return
-                                        } catch (t: Throwable) {
-                                            Log.e(TAG, "GMSCompatX: Error inside lazy connectGmsCore shield", t)
                                         }
-                                    }
-                                })
-                                Log.d(TAG, "GMSCompatX: In-process BinderGms2Gca Signature Shield injected successfully!")
+                                    })
+                                    Log.d(TAG, "GMSCompatX: Pure dynamic BinderGms2Gca Shield installed successfully!")
+                                } else {
+                                    Log.e(TAG, "GMSCompatX: Critical Error - connectGmsCore method not found in BinderGms2Gca!")
+                                }
                             } catch (t: Throwable) {
-                                Log.e(TAG, "GMSCompatX: Delayed signature shield installation failed", t)
+                                Log.e(TAG, "GMSCompatX: Failed to dynamically inject signature shield", t)
                                 isSignatureShieldInstalled.set(false)
                             }
                         }
