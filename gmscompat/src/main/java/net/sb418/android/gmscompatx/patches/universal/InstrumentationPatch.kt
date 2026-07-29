@@ -31,15 +31,21 @@ internal object InstrumentationPatch : IPatch, XC_MethodHook() {
 		// NOTE: there are two implementations of newApplication, so we scan the arguments for the Context
 		for (arg in param.args) {
 			if (arg is Context) {
+				val classLoader = arg.classLoader ?: return
 				try {
-					val gmsHooksClass = GmsHooks::class.java
-					val hasNewApi = gmsHooksClass.declaredMethods.any { method ->
-						method.parameterTypes.any { paramType ->
-							paramType.name.contains("IFileProxyService")
+					val gmsHooksClass = Class.forName("com.android.internal.gmscompat.GmsHooks", false, classLoader)
+					var hasNewApi = false
+					for (method in gmsHooksClass.declaredMethods) {
+						for (paramType in method.parameterTypes) {
+							if (paramType.name.contains("IFileProxyService")) {
+								hasNewApi = true
+								break
+							}
 						}
+						if (hasNewApi) break
 					}
 					val hasNewGmsCompatApp = try {
-						Class.forName("app.grapheneos.gmscompat.BinderClientOfGmsCore2Gca", false, arg.classLoader)
+						Class.forName("app.grapheneos.gmscompat.BinderClientOfGmsCore2Gca", false, classLoader)
 						true
 					} catch (e: ClassNotFoundException) {
 						false
