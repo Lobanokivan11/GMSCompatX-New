@@ -10,10 +10,9 @@ import android.content.Intent
 import android.content.ServiceConnection
 import android.os.Handler
 import android.os.UserHandle
-import android.util.ArraySet
+import android.util.Log
 import java.util.concurrent.ConcurrentHashMap
 import java.util.Collections
-import com.android.internal.gmscompat.BinderRedirector
 import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XposedBridge
 import de.robv.android.xposed.XposedHelpers
@@ -24,12 +23,14 @@ import java.util.concurrent.Executor
 /**
  * Purpose: initialize [BinderRedirector] when necessary by calling [BinderRedirector.maybeInit].
  *
- * Implements: [94da5aad6c: ContextImpl.java#L2049](https://github.com/GrapheneOS/platform_frameworks_base/blob/94da5aad6c3184e8afc540bd4cda80fa8a1f2cb6/core/java/android/app/ContextImpl.java#L2049)
- *
- * Note: this implementation differs significantly from the original patch.
+ * Note: Refactored to use reflection to bypass NoClassDefFoundError on GrapheneOS system classes.
  */
 @Suppress("ClassName")
 internal object InitBinderRedirectorPatch : IPatch {
+	private const val TAG = "GMSCompatX.InitBinderRedirectorPatch"
+	private var binderRedirectorClass: Class<*>? = null
+	private var isClassChecked = false
+
 	override fun install() {
 		val contextImpl = XposedHelpers.findClass("android.app.ContextImpl", null)
 
@@ -46,7 +47,6 @@ internal object InitBinderRedirectorPatch : IPatch {
 			ContextImpl_validateServiceIntent,
 		)
 	}
-
 
 	/** Represents a context + service intent pair. */
 	private data class CtxIntentEntry(val ctx: Context, val service: Intent) {
@@ -67,7 +67,6 @@ internal object InitBinderRedirectorPatch : IPatch {
 
 	/**
 	 * Tracks service [Intents][Intent] and their associated [Contexts][Context] while they are in `bindServiceCommon()`.
-	 * Uses strong references - failure to drop entries will result in a memory leak!
 	 */
 	private val currentlyBindingServices: MutableSet<CtxIntentEntry> = Collections.newSetFromMap(ConcurrentHashMap<CtxIntentEntry, Boolean>())
 
@@ -75,31 +74,40 @@ internal object InitBinderRedirectorPatch : IPatch {
 		override fun beforeHookedMethod(param: MethodHookParam) {
 			val ctx = param.thisObject as Context
 			val service = param.args[0] as Intent
-
-			// mark service intent for check
 			currentlyBindingServices.add(CtxIntentEntry(ctx, service))
 		}
 
 		override fun afterHookedMethod(param: MethodHookParam) {
 			val ctx = param.thisObject as Context
 			val service = param.args[0] as Intent
-
-			// unmark service intent
 			currentlyBindingServices.remove(CtxIntentEntry(ctx, service))
 		}
 	}
 
 	private object ContextImpl_validateServiceIntent : XC_MethodHook() {
 		override fun afterHookedMethod(param: MethodHookParam) {
-			// skip hook if an exception was thrown
 			if (param.hasThrowable()) return
 
 			val ctx = param.thisObject as Context
 			val service = param.args[0] as Intent
 
-			// check if this intent is from `bindServiceCommon`
 			if (currentlyBindingServices.contains(CtxIntentEntry(ctx, service))) {
-				BinderRedirector.maybeInit(service)
+				if (!isClassChecked) {
+					try {
+						binderRedirectorClass = Class.forName("com.android.internal.gmscompat.BinderRedirector", false, ctx.classLoader)
+					} catch (e: ClassNotFoundException) {
+						Log.w(TAG, "GMSCompatX: com.android.internal.gmscompat.BinderRedirector not found. Skipping proxy call.")
+					} finally {
+						isClassChecked = true
+					}
+				}
+				binderRedirectorClass?.let { targetClass ->
+					try {
+						XposedHelpers.callStaticMethod(targetClass, "maybeInit", service)
+					} catch (t: Throwable) {
+						Log.e(TAG, "GMSCompatX: Failed to execute BinderRedirector.maybeInit via reflection", t)
+					}
+				}
 			}
 		}
 	}
