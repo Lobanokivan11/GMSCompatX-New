@@ -80,7 +80,7 @@ public final class GmsCompatApp {
 					Refine.<ContextHidden>unsafeCast(ctx).getMainThreadHandler()
 						.postDelayed(GmsCompatApp::maybeShowContactsSyncNotification, 3000L);
 				}
-				return iGms2Gca.connectGmsCore(processName, gca2Gms.asBinder(), fileProxyService);
+				return iGms2Gca.connectGmsCore(processName, gca2Gms, fileProxyService);
 			} else {
 				return iGms2Gca.connect(ctx.getPackageName(), processName, gca2Gms);
 			}
