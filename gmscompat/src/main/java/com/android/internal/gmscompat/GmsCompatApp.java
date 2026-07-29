@@ -147,39 +147,54 @@ public final class GmsCompatApp {
 	public static final int BINDER_IGms2Gca = 0;
 	public static final int BINDER_IClientOfGmsCore2Gca = 1;
 
-    private static IBinder getBinder(int which) {
-        try {
-            Class<?> binderClass = Class.forName("app.grapheneos.gmscompat.BinderGms2Gca");
-            java.lang.reflect.Field instanceField = binderClass.getDeclaredField("INSTANCE");
-            instanceField.setAccessible(true);
-            IBinder binder = (IBinder) instanceField.get(null);
-            
-            if (binder != null) {
-                DeathRecipient.register(binder);
-                return binder;
-            }
-        } catch (Throwable t) {
-            Log.w(TAG, "Direct ClassLoader Binder bypass failed, falling back to ServiceManager", t);
-        }
+	private static IBinder getBinder(int which) {
+		try {
+			Class<?> binderClass = Class.forName("app.grapheneos.gmscompat.BinderGms2Gca");
+			java.lang.reflect.Field instanceField = binderClass.getDeclaredField("INSTANCE");
+			instanceField.setAccessible(true);
+			IBinder binder = (IBinder) instanceField.get(null);
+			
+			if (binder != null) {
+				DeathRecipient.register(binder);
+				return binder;
+			}
+		} catch (Throwable t) {
+			Log.w(TAG, "Direct ClassLoader Binder bypass failed, falling back to ServiceManager", t);
+		}
 
-        try {
-            Class<?> smClass = Class.forName("android.os.ServiceManager");
-            java.lang.reflect.Method getServiceMethod = smClass.getMethod("getService", String.class);
-            String serviceName = (which == BINDER_IGms2Gca) ? "com.android.internal.gmscompat.IGms2Gca" : "IClientOfGmsCore2Gca";
-            IBinder binder = (IBinder) getServiceMethod.invoke(null, serviceName);
-            if (binder != null) {
-                DeathRecipient.register(binder);
-                return binder;
-            }
-        } catch (Throwable t) {
-            Log.w(TAG, "ServiceManager lookup failed", t);
-        }
+		try {
+			Class<?> smClass = Class.forName("android.os.ServiceManager");
+			java.lang.reflect.Method getServiceMethod = smClass.getMethod("getService", String.class);
+			String serviceName = (which == BINDER_IGms2Gca) ? "com.android.internal.gmscompat.IGms2Gca" : "IClientOfGmsCore2Gca";
+			IBinder binder = (IBinder) getServiceMethod.invoke(null, serviceName);
+			
+			if (binder != null) {
+				DeathRecipient.register(binder);
+				return binder;
+			}
+		} catch (Throwable t) {
+			Log.w(TAG, "ServiceManager lookup failed, falling back to ContentProvider", t);
+		}
 
-        Log.e(TAG, "Fatal: All Binder acquisition methods exhausted.");
-        System.exit(1);
-        return null;
-    }
+		String authority = PKG_NAME + ".BinderProvider";
+		try {
+			Bundle bundle = GmsCompat.appContext().getContentResolver()
+				.call(authority, Integer.toString(which), null, null);
+			if (bundle != null) {
+				IBinder binder = bundle.getBinder(KEY_BINDER);
+				if (binder != null) {
+					DeathRecipient.register(binder);
+					return binder;
+				}
+			}
+		} catch (Throwable t) {
+			Log.w(TAG, "ContentProvider lookup transient failure", t);
+		}
 
+		Log.e(TAG, "Fatal: All Binder acquisition methods exhausted.");
+		System.exit(1);
+		return null;
+	}
 
 	static class DeathRecipient implements IBinder.DeathRecipient {
 		private static final DeathRecipient INSTANCE = new DeathRecipient();
