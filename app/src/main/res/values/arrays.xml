@@ -5,5 +5,6 @@
         <item>com.google.android.gms</item>
         <item>com.google.android.gsf</item>
         <item>com.android.vending</item>
+		<item>app.grapheneos.gmscompat</item>
     </string-array>
 </resources>
