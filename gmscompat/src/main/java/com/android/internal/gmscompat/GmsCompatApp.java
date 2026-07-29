@@ -60,34 +60,66 @@ public final class GmsCompatApp {
 
 	public static final String KEY_BINDER = "binder";
 
-	static GmsCompatConfig connect(Context ctx, String processName) {
+    static GmsCompatConfig connect(Context ctx, String processName) {
 		BinderGca2Gms gca2Gms = new BinderGca2Gms();
 		binderGca2Gms = gca2Gms;
 
 		try {
-			IGms2Gca iGms2Gca = IGms2Gca.Stub.asInterface(getBinder(BINDER_IGms2Gca));
+			IBinder rawBinder = getBinder(BINDER_IGms2Gca);
+			IGms2Gca iGms2Gca = IGms2Gca.Stub.asInterface(rawBinder);
 			binderGms2Gca = iGms2Gca;
-
+			Object realProxy = null;
+			try {
+				Class<?> proxyClass = Class.forName("com.android.internal.gmscompat.IGms2Gca$Stub$Proxy");
+				java.lang.reflect.Constructor<?> ctor = proxyClass.getDeclaredConstructor(IBinder.class);
+				ctor.setAccessible(true);
+				realProxy = ctor.newInstance(rawBinder);
+			} catch (Exception ex) {
+				Log.e(TAG, "Failed to instantiate dynamic AIDL Proxy, falling back to compile-time Stub", ex);
+			}
 			if (GmsCompat.isGmsCore()) {
 				FileProxyService fileProxyService = null;
 				if (inPersistentGmsCoreProcess) {
-					// FileProxyService binder needs to be always available to the Dynamite clients.
-					// "persistent" process launches at bootup and is kept alive by the ServiceConnection
-					// from the GmsCompatApp, which makes it fit for the purpose of hosting the FileProxyService
 					fileProxyService = new FileProxyService(ctx);
 					dynamiteFileProxyService = fileProxyService;
 
 					Refine.<ContextHidden>unsafeCast(ctx).getMainThreadHandler()
 						.postDelayed(GmsCompatApp::maybeShowContactsSyncNotification, 3000L);
 				}
+
+				if (realProxy != null) {
+					try {
+						for (java.lang.reflect.Method m : realProxy.getClass().getDeclaredMethods()) {
+							if (m.getName().equals("connectGmsCore")) {
+								m.setAccessible(true);
+								return (GmsCompatConfig) m.invoke(realProxy, processName, gca2Gms, fileProxyService);
+							}
+						}
+					} catch (Exception ex) {
+						Log.e(TAG, "Dynamic connectGmsCore invocation failed", ex);
+					}
+				}
 				return iGms2Gca.connectGmsCore(processName, gca2Gms, fileProxyService);
 			} else {
+				if (realProxy != null) {
+					try {
+						for (java.lang.reflect.Method m : realProxy.getClass().getDeclaredMethods()) {
+							if (m.getName().equals("connect")) {
+								m.setAccessible(true);
+								return (GmsCompatConfig) m.invoke(realProxy, ctx.getPackageName(), processName, gca2Gms);
+							}
+						}
+					} catch (Exception ex) {
+						Log.e(TAG, "Dynamic connect invocation failed", ex);
+					}
+				}
 				return iGms2Gca.connect(ctx.getPackageName(), processName, gca2Gms);
 			}
 		} catch (RemoteException e) {
 			throw callFailed(e);
 		}
 	}
+
 
 	public static IGms2Gca iGms2Gca() {
 		return binderGms2Gca;
