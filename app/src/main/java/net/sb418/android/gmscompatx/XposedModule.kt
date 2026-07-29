@@ -84,9 +84,9 @@ class XposedModule : IXposedHookZygoteInit, IXposedHookLoadPackage {
 			//	com.android.internal.gmscompat.flags.GmsFlag::class,
 			//)
 			// Disable hooking because of mistake
-			"app.grapheneos.gmscompat" -> emptyArray()
+			"app.grapheneos.gmscompat" -> emptyArray<KClass<*>>()
 			// all other apps
-			else -> emptyArray()
+			else -> emptyArray<KClass<*>>()
 		}
 
 		// inject classes into app
