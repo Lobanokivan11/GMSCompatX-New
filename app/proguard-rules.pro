@@ -10,3 +10,6 @@
 
 # guava: ignore missing annotation classes (not used at runtime)
 -dontwarn com.google.j2objc.annotations.**
+
+# ignote grapheneos' files to fix error
+-dontwarn app.grapheneos.gmscompat.**
