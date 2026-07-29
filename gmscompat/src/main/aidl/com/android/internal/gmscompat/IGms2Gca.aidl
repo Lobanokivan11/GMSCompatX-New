@@ -11,8 +11,8 @@ import com.android.internal.gmscompat.dynamite.server.IFileProxyService;
 
 // calls from GMS components to GmsCompatApp
 interface IGms2Gca {
+	GmsCompatConfig connect(String packageName, String processName, IGca2Gms iGca2Gms);
     GmsCompatConfig connectGmsCore(String processName, IGca2Gms iGca2Gms, @nullable IFileProxyService dynamiteFileProxyService);
-    GmsCompatConfig connect(String packageName, String processName, IGca2Gms iGca2Gms);
 
     oneway void showPlayStorePendingUserActionNotification(@nullable String pkgName);
     oneway void dismissPlayStorePendingUserActionNotification();
