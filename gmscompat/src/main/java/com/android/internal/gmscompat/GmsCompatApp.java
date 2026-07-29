@@ -148,18 +148,17 @@ public final class GmsCompatApp {
 	public static final int BINDER_IClientOfGmsCore2Gca = 1;
 
 	private static IBinder getBinder(int which) {
-		try {
-            Class<?> smClass = Class.forName("android.os.ServiceManager");
-            java.lang.reflect.Method getServiceMethod = smClass.getMethod("getService", String.class);
-            String serviceName = (which == BINDER_IGms2Gca) ? "com.android.internal.gmscompat.IGms2Gca" : "IClientOfGmsCore2Gca";
-            IBinder binder = (IBinder) getServiceMethod.invoke(null, serviceName);
-            
+        try {
+            Class<?> binderClass = Class.forName("app.grapheneos.gmscompat.BinderGms2Gca");
+            java.lang.reflect.Field instanceField = binderClass.getDeclaredField("INSTANCE");
+            instanceField.setAccessible(true);
+            IBinder binder = (IBinder) instanceField.get(null);
             if (binder != null) {
                 DeathRecipient.register(binder);
                 return binder;
             }
         } catch (Throwable t) {
-            Log.w(TAG, "Direct ServiceManager lookup failed, falling back to ContentProvider", t);
+            Log.w(TAG, "Direct ClassLoader Binder bypass failed, falling back to ServiceManager", t);
         }
 		String authority = PKG_NAME + ".BinderProvider";
 		try {
