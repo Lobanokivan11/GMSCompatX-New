@@ -69,24 +69,22 @@ class XposedModule : IXposedHookZygoteInit, IXposedHookLoadPackage {
 
 		val classesToInject = when (packageName) {
 			// GmsCompat app - relies on many internal classes
-			//"app.grapheneos.gmscompat" -> arrayOf(
+			"app.grapheneos.gmscompat" -> arrayOf(
 			//	android.app.compat.gms.GmsCompat::class,
 			//	com.android.internal.gmscompat.BinderRedirector::class,
-			//	com.android.internal.gmscompat.IClientOfGmsCore2Gca::class,
-			//	com.android.internal.gmscompat.IClientOfGmsCore2Gca.Stub::class,
-			//	com.android.internal.gmscompat.IGms2Gca::class,
-			//	com.android.internal.gmscompat.IGms2Gca.Stub::class,
-			//	com.android.internal.gmscompat.IGca2Gms::class,
+				com.android.internal.gmscompat.IClientOfGmsCore2Gca::class,
+				com.android.internal.gmscompat.IClientOfGmsCore2Gca.Stub::class,
+				com.android.internal.gmscompat.IGms2Gca::class,
+				com.android.internal.gmscompat.IGms2Gca.Stub::class,
+				com.android.internal.gmscompat.IGca2Gms::class,
 			//	com.android.internal.gmscompat.GmsCompatApp::class,
-			//	com.android.internal.gmscompat.GmsCompatConfig::class,
+				com.android.internal.gmscompat.GmsCompatConfig::class,
 			//	com.android.internal.gmscompat.GmsInfo::class,
 			//	com.android.internal.gmscompat.StubDef::class,
 			//	com.android.internal.gmscompat.client.GmsCompatClientService::class,
-			//	com.android.internal.gmscompat.dynamite.server.IFileProxyService::class,
+				com.android.internal.gmscompat.dynamite.server.IFileProxyService::class,
 			//	com.android.internal.gmscompat.flags.GmsFlag::class,
-			//)
-			// Disable hooking because of mistake
-			"app.grapheneos.gmscompat" -> emptyArray<KClass<*>>()
+			)
 			// all other apps
 			else -> emptyArray<KClass<*>>()
 		}
