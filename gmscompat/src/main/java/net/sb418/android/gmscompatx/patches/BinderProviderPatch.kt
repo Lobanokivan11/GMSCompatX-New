@@ -34,9 +34,11 @@ object BinderProviderPatch {
                             val instanceField = binderClass.getDeclaredField("INSTANCE")
                             instanceField.isAccessible = true
                             val rawBinder = instanceField.get(null) as IBinder
+                            val stubClass = rawBinder.javaClass.superclass
+                            
                             XposedBridge.hookMethod(
                                 XposedHelpers.findMethodExact(
-                                    rawBinder.javaClass, "onTransact",
+                                    stubClass, "onTransact",
                                     Int::class.java, Parcel::class.java, Parcel::class.java, Int::class.java
                                 ),
                                 object : XC_MethodHook() {
@@ -44,7 +46,7 @@ object BinderProviderPatch {
                                         val code = binderParam.args[0] as Int
                                         if (code == 218) {
                                             try {
-                                                Log.w(TAG, "GMSCompatX: Intercepted raw transaction 218. Fallback to 2-param method.")
+                                                Log.w(TAG, "GMSCompatX: Successfully intercepted raw transaction 218 in Stub class. Redirecting...")
                                                 
                                                 val data = binderParam.args[1] as Parcel
                                                 val reply = binderParam.args[2] as Parcel
@@ -77,7 +79,7 @@ object BinderProviderPatch {
                             param.result = replyBundle
                             Log.d(TAG, "Bypassed Android Sandbox (Before): Intercepted call for type: $methodArg")
                         } catch (t: Throwable) { 
-                            Log.e(TAG, "GmsCompat API has changed. BinderGms2Gca is unavailable on this OS version.", t)
+                            Log.e(TAG, "GmsCompat API has changed. BinderGms2Gca structural bypass failed.", t)
                             return
                         }
                         Log.d(TAG, "Successfully processed original Binder check from GmsCompat")
