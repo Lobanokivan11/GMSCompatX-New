@@ -28,70 +28,56 @@ internal object InstrumentationPatch : IPatch, XC_MethodHook() {
 				val classLoader = arg.classLoader ?: return
 				if (packageName == "app.grapheneos.gmscompat") {
 					try {
-						val gmsCompatAppClass = Class.forName("com.android.internal.gmscompat.GmsCompatApp", false, classLoader)
-						XposedBridge.hookAllMethods(gmsCompatAppClass, "connect", object : XC_MethodHook() {
-							override fun beforeHookedMethod(connectParam: MethodHookParam) {
-								try {
-									Log.w(TAG, "GMSCompatX: In-process GmsCompatApp bypass triggered! Defending against AIDL mismatch.")
-									val binderClass = Class.forName("app.grapheneos.gmscompat.BinderGms2Gca", false, classLoader)
-									val instanceField = binderClass.getDeclaredField("INSTANCE")
-									instanceField.isAccessible = true
-									val rawBinder = instanceField.get(null)
-									
-									if (rawBinder != null) {
-										val stubClass = rawBinder.javaClass.superclass
-										XposedBridge.hookMethod(
-											XposedHelpers.findMethodExact(
-												stubClass, "onTransact",
-												Int::class.java, android.os.Parcel::class.java, android.os.Parcel::class.java, Int::class.java
-											),
-											object : XC_MethodHook() {
-												override fun beforeHookedMethod(binderParam: MethodHookParam) {
-													val code = binderParam.args[0] as Int
-													if (code == 218) {
-														try {
-															Log.w(TAG, "GMSCompatX: Successfully intercepted transaction 218 in-process! Redirecting to safe 2-param method.")
-															
-															val data = binderParam.args[1] as android.os.Parcel
-															val reply = binderParam.args[2] as android.os.Parcel
-															data.enforceInterface("com.android.internal.gmscompat.IGms2Gca")
-															val processName = data.readString()
-															val iGca2GmsBinder = data.readStrongBinder()
-															val fileProxyBinder = data.readStrongBinder()
-															val iGca2GmsClass = Class.forName("com.android.internal.gmscompat.IGca2Gms", false, classLoader)
-															val iGca2GmsInstance = XposedHelpers.callStaticMethod(iGca2GmsClass, "asInterface", iGca2GmsBinder)
-															val gmsCompatConfigInstance = XposedHelpers.callMethod(rawBinder, "connectGmsCore", processName, iGca2GmsInstance)
-															reply.writeNoException()
-															if (gmsCompatConfigInstance != null) {
-																reply.writeInt(1)
-																XposedHelpers.callMethod(gmsCompatConfigInstance, "writeToParcel", reply, 0)
-															} else {
-																reply.writeInt(0)
-															}
-															binderParam.result = true
-															return
-														} catch (t: Throwable) {
-															Log.e(TAG, "GMSCompatX: Crash inside in-process transaction 218 redirection", t)
-														}
-													}
-												}
+						val binderClass = Class.forName("app.grapheneos.gmscompat.BinderGms2Gca", false, classLoader)
+						val stubClass = binderClass.superclass
+						XposedBridge.hookMethod(
+							XposedHelpers.findMethodExact(
+								stubClass, "onTransact",
+								Int::class.java, android.os.Parcel::class.java, android.os.Parcel::class.java, Int::class.java
+							),
+							object : XC_MethodHook() {
+								override fun beforeHookedMethod(binderParam: MethodHookParam) {
+									val code = binderParam.args[0] as Int
+									if (code == 218) {
+										try {
+											Log.w(TAG, "GMSCompatX: Successfully intercepted incoming transaction 218 inside gmscompat process! Preventing AbstractMethodError.")
+											
+											val rawBinder = binderParam.thisObject as android.os.IBinder
+											val data = binderParam.args[1] as android.os.Parcel
+											val reply = binderParam.args[2] as android.os.Parcel
+											data.enforceInterface("com.android.internal.gmscompat.IGms2Gca")
+											val processName = data.readString()
+											val iGca2GmsBinder = data.readStrongBinder()
+											val fileProxyBinder = data.readStrongBinder()
+											val iGca2GmsClass = Class.forName(iGca2GmsBinder.interfaceDescriptor, false, classLoader)
+											val iGca2GmsInstance = XposedHelpers.callStaticMethod(iGca2GmsClass, "asInterface", iGca2GmsBinder)
+											val gmsCompatConfigInstance = XposedHelpers.callMethod(rawBinder, "connectGmsCore", processName, iGca2GmsInstance)
+											reply.writeNoException()
+											if (gmsCompatConfigInstance != null) {
+												reply.writeInt(1)
+												XposedHelpers.callMethod(gmsCompatConfigInstance, "writeToParcel", reply, 0)
+											} else {
+												reply.writeInt(0)
 											}
-										)
-										Log.d(TAG, "GMSCompatX: In-process AIDL Stub protection installed successfully!")
+											binderParam.result = true
+											return
+										} catch (t: Throwable) {
+											Log.e(TAG, "GMSCompatX: Internal fallback error during transaction 218 processing", t)
+										}
 									}
-								} catch (t: Throwable) {
-									Log.e(TAG, "GMSCompatX: Failed to execute inner connect filter", t)
 								}
 							}
-						})
+						)
+						Log.d(TAG, "GMSCompatX: In-process BinderGms2Gca Stub shield installed successfully!")
 					} catch (t: Throwable) {
-						Log.e(TAG, "GMSCompatX: Failed to setup in-process GmsCompatApp hook", t)
+						Log.e(TAG, "GMSCompatX: Critical failure while installing in-process Binder shield", t)
 					}
 				}
+
 				try {
 					GmsCompat.maybeEnable(arg)
 				} catch (t: Throwable) {
-					Log.e(TAG, "GmsCompat.maybeEnable execution protected and suppressed", t)
+					Log.e(TAG, "GmsCompat.maybeEnable execution safely bypassed", t)
 				}
 				return
 			}
