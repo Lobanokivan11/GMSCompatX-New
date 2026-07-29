@@ -19,20 +19,26 @@ object BinderProviderPatch {
     fun install(classLoader: ClassLoader) {
         try {
             val providerClass = Class.forName("app.grapheneos.gmscompat.BinderProvider", false, classLoader)
+            
             XposedBridge.hookAllMethods(providerClass, "call", object : XC_MethodHook() {
-                override fun afterHookedMethod(param: MethodHookParam) {
+                override fun beforeHookedMethod(param: MethodHookParam) {
                     val methodArg = param.args.getOrNull(1) as? String ?: "0"
-                    val binderClass = Class.forName("app.grapheneos.gmscompat.BinderGms2Gca", false, classLoader)
-                    val instanceField = binderClass.getDeclaredField("INSTANCE")
-                    instanceField.isAccessible = true
-                    val rawBinder = instanceField.get(null) as IBinder
-                    val replyBundle = Bundle()
-                    replyBundle.putBinder(KEY_BINDER, rawBinder)
-                    param.result = replyBundle
-                    Log.d(TAG, "Bypassed Android Sandbox: Intercepted BinderProvider#call for type: $methodArg")
+                    
+                    try {
+                        val binderClass = Class.forName("app.grapheneos.gmscompat.BinderGms2Gca", false, classLoader)
+                        val instanceField = binderClass.getDeclaredField("INSTANCE")
+                        instanceField.isAccessible = true
+                        val rawBinder = instanceField.get(null) as IBinder
+                        val replyBundle = Bundle()
+                        replyBundle.putBinder(KEY_BINDER, rawBinder)
+                        param.result = replyBundle
+                        Log.d(TAG, "Bypassed Android Sandbox (Before): Intercepted call for type: $methodArg")
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error resolving Binder inside hook", e)
+                    }
                 }
             })
-            Log.d(TAG, "BinderProviderPatch successfully hooks inherited ContentProvider#call method!")
+            Log.d(TAG, "BinderProviderPatch optimization installed!")
         } catch (t: Throwable) {
             Log.e(TAG, "Failed to install BinderProviderPatch", t)
         }
