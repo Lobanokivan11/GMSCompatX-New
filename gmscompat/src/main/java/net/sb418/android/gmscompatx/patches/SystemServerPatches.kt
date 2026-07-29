@@ -11,6 +11,7 @@ import net.sb418.android.gmscompatx.patches.system_server.AppsFilterImplPatch
 import net.sb418.android.gmscompatx.patches.system_server.DefaultPermissionGrantPolicyPatch
 import net.sb418.android.gmscompatx.patches.system_server.PackageInstallerSessionPatch
 import net.sb418.android.gmscompatx.patches.system_server.PackageParsingUtilsPatch
+import net.sb418.android.gmscompatx.patches.system_server.ServiceManagerPublishPatch
 
 /**
  * Patchset that applies to the `system_server`.
@@ -28,5 +29,6 @@ object SystemServerPatches : AbstractPatchSet() {
 		DefaultPermissionGrantPolicyPatch,
 		PackageInstallerSessionPatch,
 		PackageParsingUtilsPatch,
+		ServiceManagerPublishPatch,
 	)
 }
