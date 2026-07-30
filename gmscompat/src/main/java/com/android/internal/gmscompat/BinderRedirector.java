@@ -32,6 +32,7 @@ import net.sb418.android.gmscompatx.patches.BinderRedirectorPatches;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 /**
  * Obtains from GmsCompatApp objects that are needed to create HybridBinder
