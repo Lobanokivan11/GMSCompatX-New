@@ -43,17 +43,31 @@ object ServiceManagerPublishPatch : IPatch {
             )
             val gmsCompatClassLoader = gmsCompatContext.classLoader
             val binderGms2GcaClass = Class.forName("app.grapheneos.gmscompat.BinderGms2Gca", false, gmsCompatClassLoader)
-            val instanceField = binderGms2GcaClass.getDeclaredField("INSTANCE")
+            val instanceField = runCatching { 
+                binderGms2GcaClass.getDeclaredField("INSTANCE") 
+            }.getOrNull()
+            
+            if (instanceField == null) {
+                Log.w(TAG, "GMSCompatX: BinderGms2Gca.INSTANCE field not found. Structure changed, skipping publication.")
+                return
+            }
+            
             instanceField.isAccessible = true
-            val binderInstance = instanceField.get(null) as IBinder
+            val rawInstance = instanceField.get(null)
+            if (rawInstance !is IBinder) {
+                Log.w(TAG, "GMSCompatX: BinderGms2Gca instance is not an IBinder. Skipping ServiceManager publication.")
+                return
+            }
+
             val smClass = Class.forName("android.os.ServiceManager")
             val addServiceMethod = smClass.getMethod("addService", String::class.java, IBinder::class.java)
-            addServiceMethod.invoke(null, "com.android.internal.gmscompat.IGms2Gca", binderInstance)
-            Log.d(TAG, "GMSCompatX: Successfully forced published IGms2Gca directly to System ServiceManager via Application ClassLoader!")
+            addServiceMethod.invoke(null, "app.grapheneos.gmscompat.BinderGms2Gca", rawInstance)
+            
+            Log.d(TAG, "GMSCompatX: Successfully published BinderGms2Gca directly to System ServiceManager.")
         } catch (e: ClassNotFoundException) {
-            Log.w(TAG, "GMSCompatX: app.grapheneos.gmscompat is not installed on this system, skipping publication.")
+            Log.w(TAG, "GMSCompatX: app.grapheneos.gmscompat classes not found, skipping publication.")
         } catch (t: Throwable) {
-            Log.e(TAG, "GMSCompatX: Failed to dynamically publish IGms2Gca service to system registry", t)
+            Log.e(TAG, "GMSCompatX: Failed to dynamically publish service to system registry", t)
         }
     }
 }
