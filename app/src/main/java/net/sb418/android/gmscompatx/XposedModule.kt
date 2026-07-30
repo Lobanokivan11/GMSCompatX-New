@@ -63,12 +63,14 @@ class XposedModule : IXposedHookZygoteInit, IXposedHookLoadPackage {
 					val serverClass = Class.forName("net.sb418.android.gmscompatx.patches.SystemServerPatches")
 					serverClass.getDeclaredMethod("install").invoke(null)
 				}
-			} else if (param.packageName != "app.grapheneos.gmscompat") {
-				runCatching {
-					val appPatcherClass = Class.forName("net.sb418.android.gmscompatx.patches.SystemAppPatcher")
-					val getPatchset = appPatcherClass.getDeclaredMethod("getPatchsetFor", String::class.java)
-					val patchset = getPatchset.invoke(null, param.packageName)
-					patchset?.javaClass?.getDeclaredMethod("install")?.invoke(patchset)
+			} else {
+				if (param.packageName != "app.grapheneos.gmscompat") {
+					runCatching {
+						val appPatcherClass = Class.forName("net.sb418.android.gmscompatx.patches.SystemAppPatcher")
+						val getPatchset = appPatcherClass.getDeclaredMethod("getPatchsetFor", String::class.java)
+						val patchset = getPatchset.invoke(null, param.packageName)
+						patchset?.javaClass?.getDeclaredMethod("install")?.invoke(patchset)
+					}
 				}
 			}
 		}.onFailure { t ->
