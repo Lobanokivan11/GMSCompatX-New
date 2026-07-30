@@ -69,20 +69,19 @@ class XposedModule : IXposedHookZygoteInit, IXposedHookLoadPackage {
 		val classNamesToInject: Array<String> = when (packageName) {
 			"app.grapheneos.gmscompat" -> {
 				try {
-					Class.forName("com.android.internal.gmscompat.IGms2Gca\$Stub", false, param.classLoader)
-					arrayOf(
-						"com.android.internal.gmscompat.IClientOfGmsCore2Gca",
-						"com.android.internal.gmscompat.IClientOfGmsCore2Gca\$Stub",
-						"com.android.internal.gmscompat.IGms2Gca",
-						"com.android.internal.gmscompat.IGms2Gca\$Stub",
-						"com.android.internal.gmscompat.IGca2Gms",
-						"com.android.internal.gmscompat.GmsCompatConfig",
-						"com.android.internal.gmscompat.dynamite.server.IFileProxyService"
-					)
-				} catch (e: ClassNotFoundException) {
-				Log.e(TAG, "GMSCompatX: System Classes of GmsCompat not found. skipping injection.")
-				emptyArray()
-				}
+					Class.forName("app.grapheneos.gmscompat.BinderGms2Gca", false, param.classLoader)
+        			arrayOf(
+						"app.grapheneos.gmscompat.BinderGms2Gca",
+		    	        "app.grapheneos.gmscompat.BinderGms2Gca\$DeathRecipient",
+        	    		"app.grapheneos.gmscompat.BinderClientOfGmsCore2Gca",
+			            "app.grapheneos.gmscompat.BinderProvider",
+            			"app.grapheneos.gmscompat.Notifications",
+			            "app.grapheneos.gmscompat.Redirections"
+        			)
+    			} catch (e: Throwable) {
+			        Log.e(TAG, "GMSCompatX: New GmsCompat structures not found. Skipping injection.", e)
+			        emptyArray()
+			    }
 			}
 		else -> emptyArray()
 		}
