@@ -56,7 +56,7 @@ public final class GmsCompatApp {
 	@SuppressWarnings("FieldCanBeLocal")
 	private static FileProxyService dynamiteFileProxyService;
 
-	private static IGms2Gca binderGms2Gca;
+	private static Object binderGms2Gca;
 
 	public static final String KEY_BINDER = "binder";
 
