@@ -68,20 +68,20 @@ class XposedModule : IXposedHookZygoteInit, IXposedHookLoadPackage {
 		val packageName: String = param.packageName
 		val classNamesToInject: Array<String> = when (packageName) {
 			"app.grapheneos.gmscompat" -> {
-				try {
+				runCatching {
 					Class.forName("app.grapheneos.gmscompat.BinderGms2Gca", false, param.classLoader)
-        			arrayOf(
+					arrayOf(
 						"app.grapheneos.gmscompat.BinderGms2Gca",
-		    	        "app.grapheneos.gmscompat.BinderGms2Gca\$DeathRecipient",
-        	    		"app.grapheneos.gmscompat.BinderClientOfGmsCore2Gca",
-			            "app.grapheneos.gmscompat.BinderProvider",
-            			"app.grapheneos.gmscompat.Notifications",
-			            "app.grapheneos.gmscompat.Redirections"
-        			)
-    			} catch (e: Throwable) {
-			        Log.e(TAG, "GMSCompatX: New GmsCompat structures not found. Skipping injection.", e)
-			        emptyArray()
-			    }
+						"app.grapheneos.gmscompat.BinderGms2Gca\$DeathRecipient",
+						"app.grapheneos.gmscompat.BinderClientOfGmsCore2Gca",
+						"app.grapheneos.gmscompat.BinderProvider",
+						"app.grapheneos.gmscompat.Notifications",
+						"app.grapheneos.gmscompat.Redirections"
+					)
+				}.getOrElse { e ->
+					Log.e(TAG, "GMSCompatX: New GmsCompat structures not found. Skipping injection.", e)
+					emptyArray()
+				}
 			}
 		else -> emptyArray()
 		}
@@ -93,7 +93,7 @@ class XposedModule : IXposedHookZygoteInit, IXposedHookLoadPackage {
 				try {
 					val clazz = Class.forName(className, false, param.classLoader)
 					resolvedClasses.add(clazz)
-				} catch (e: ClassNotFoundException) {
+				} catch (e: Throwable) {
 					Log.w(TAG, "GMSCompatX: Failed to resolve class for injection: $className")
 				}
 			}
@@ -105,7 +105,11 @@ class XposedModule : IXposedHookZygoteInit, IXposedHookLoadPackage {
 		}
 
 		// apply system app patches (if needed)
-		SystemAppPatcher.getPatchsetFor(packageName)?.install()
+		try {
+			SystemAppPatcher.getPatchsetFor(packageName)?.install()
+		} catch (t: Throwable) {
+			Log.e(TAG, "GMSCompatX: Failed to install SystemAppPatcher for $packageName", t)
+		}
 	}
 
 	/**
