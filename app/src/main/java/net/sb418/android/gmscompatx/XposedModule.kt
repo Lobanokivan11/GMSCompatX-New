@@ -37,36 +37,36 @@ class XposedModule : IXposedHookZygoteInit, IXposedHookLoadPackage {
 	}
 
 	override fun handleLoadPackage(param: LoadPackageParam) {
-		Log.d(TAG, "handleLoadPackage: package=${param.packageName}, process=${param.processName}, isFirst=${param.isFirstApplication}")
+		runCatching {
+			Log.d(TAG, "handleLoadPackage: package=${param.packageName}, process=${param.processName}, isFirst=${param.isFirstApplication}")
 
-		// ignore if we've already patched this process
-		if (!param.isFirstApplication)
-			return
-		if (param.packageName == "app.grapheneos.gmscompat") {
-			runCatching {
-				net.sb418.android.gmscompatx.patches.BinderProviderPatch.install(param.classLoader)
-			}.onFailure { e ->
-				Log.e(TAG, "GMSCompatX: Critical error during BinderProviderPatch installation. Skipping patch.", e)
-			}
-		}
-
-		// initialize patch context
-		try {
-			PatchContext.packageName = param.packageName
-			PatchContext.processName = param.processName
-			if (!PatchContext.procInfoInitialized.compareAndSet(false, true)) {
-				Log.w(TAG, "PatchContext app info already initialized for ${param.packageName}")
+			if (!param.isFirstApplication)
 				return
-			}
-		} catch (t: Throwable) {
-			Log.e(TAG, "GMSCompatX: Failed to initialize PatchContext", t)
-			return
-		}
 
-		if (param.packageName == "android") {
-			onSystemServerLoad(param)
-		} else {
-			onApplicationLoad(param)
+			if (param.packageName == "app.grapheneos.gmscompat") {
+				runCatching {
+					net.sb418.android.gmscompatx.patches.BinderProviderPatch.install(param.classLoader)
+				}.onFailure { e ->
+					Log.e(TAG, "GMSCompatX: Error in BinderProviderPatch", e)
+				}
+			}
+			runCatching {
+				PatchContext.packageName = param.packageName
+				PatchContext.processName = param.processName
+				PatchContext.procInfoInitialized.compareAndSet(false, true)
+			}
+
+			if (param.packageName == "android") {
+				onSystemServerLoad(param)
+			} else {
+				runCatching {
+					onApplicationLoad(param)
+				}.onFailure { e ->
+					Log.e(TAG, "GMSCompatX: Error in onApplicationLoad for ${param.packageName}", e)
+				}
+			}
+		}.onFailure { t ->
+			Log.wtf(TAG, "GMSCompatX: Top-level handleLoadPackage interceptor caught a fatal linkage error!", t)
 		}
 	}
 
