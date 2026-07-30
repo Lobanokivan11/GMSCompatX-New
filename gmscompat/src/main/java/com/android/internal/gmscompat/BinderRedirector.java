@@ -40,7 +40,6 @@ import java.util.Arrays;
 public final class BinderRedirector implements Parcelable {
 	private static final String TAG = "BinderRedirector";
 
-	// written last in the init sequence, "volatile" to publish all the preceding writes
 	private static volatile boolean enabled;
 	private static String[] redirectableInterfaces;
 	private static String[] notableInterfaces;
@@ -60,9 +59,6 @@ public final class BinderRedirector implements Parcelable {
 		return enabled;
 	}
 
-	// call from ContextImpl#bindServiceCommon(),
-	// after intent is validated, but before request to the ActivityManager
-	// (otherwise there would be a race if bindService() is called from the non-main thread)
 	public static void maybeInit(Intent intent) {
 		if (!GmsInfo.PACKAGE_GMS_CORE.equals(intent.getPackage())) {
 			return;
@@ -76,32 +72,64 @@ public final class BinderRedirector implements Parcelable {
 			}
 			if (GmsCompat.isClientOfGmsCore()) {
 				try {
-					ArrayList<String> notableIfaces = new ArrayList<>(10);
-					redirectableInterfaces = GmsCompatApp.iClientOfGmsCore2Gca().getRedirectableInterfaces(notableIfaces);
-					notableIfaces.toArray(notableInterfaces = new String[notableIfaces.size()]);
-				} catch (RemoteException e) {
-					throw GmsCompatApp.callFailed(e);
-				}
-				enabled = true;
+					Object clientService = GmsCompatApp.iClientOfGmsCore2Gca();
+					if (clientService == null) {
+						Log.w(TAG, "GMSCompatX: iClientOfGmsCore2Gca is null. Disabling redirector.");
+						return;
+					}
 
-				// install BinderRedirector patches
-				BinderRedirectorPatches.INSTANCE.install();
+					ArrayList<String> notableIfaces = new ArrayList<>(10);
+					java.lang.reflect.Method getRedirectableMethod = clientService.getClass().getMethod(
+						"getRedirectableInterfaces", 
+						List.class
+					);
+					getRedirectableMethod.setAccessible(true);
+					
+					redirectableInterfaces = (String[]) getRedirectableMethod.invoke(clientService, notableIfaces);
+					notableIfaces.toArray(notableInterfaces = new String[notableIfaces.size()]);
+					
+					enabled = true;
+
+					// install BinderRedirector patches
+					BinderRedirectorPatches.INSTANCE.install();
+					
+				} catch (java.lang.reflect.InvocationTargetException e) {
+					Throwable cause = e.getCause();
+					if (cause instanceof RemoteException) {
+						throw GmsCompatApp.callFailed((RemoteException) cause);
+					}
+					throw new RuntimeException(cause);
+				} catch (Throwable t) {
+					Log.e(TAG, "GMSCompatX: Reflective maybeInit failed", t);
+				}
 			}
 		}
 	}
 
 	public static BinderRedirector maybeGet(String interface_) {
+		if (redirectableInterfaces == null) return null;
+		
 		int id = Arrays.binarySearch(redirectableInterfaces, interface_);
 		if (id >= 0) {
 			BinderRedirector rd = obtain(id);
-			if (rd.destination != null) {
+			if (rd != null && rd.destination != null) {
 				return rd;
-			} // else this redirection is disabled
-		} else if (Arrays.binarySearch(notableInterfaces, interface_) >= 0) {
+			}
+		} else if (notableInterfaces != null && Arrays.binarySearch(notableInterfaces, interface_) >= 0) {
 			try {
-				GmsCompatApp.iClientOfGmsCore2Gca().onNotableInterfaceAcquired(interface_);
-			} catch (RemoteException e) {
-				throw GmsCompatApp.callFailed(e);
+				Object clientService = GmsCompatApp.iClientOfGmsCore2Gca();
+				if (clientService != null) {
+					java.lang.reflect.Method m = clientService.getClass().getMethod("onNotableInterfaceAcquired", String.class);
+					m.setAccessible(true);
+					m.invoke(clientService, interface_);
+				}
+			} catch (java.lang.reflect.InvocationTargetException e) {
+				Throwable cause = e.getCause();
+				if (cause instanceof RemoteException) {
+					throw GmsCompatApp.callFailed((RemoteException) cause);
+				}
+			} catch (Throwable t) {
+				Log.e(TAG, "GMSCompatX: Reflective onNotableInterfaceAcquired failed", t);
 			}
 		}
 		return null;
@@ -117,19 +145,32 @@ public final class BinderRedirector implements Parcelable {
 		}
 		synchronized (BinderRedirector.class) {
 			if (redirectionStateListener == null) {
+				if (redirectableInterfaces == null) return null;
 				redirectionStateListener = RedirectionStateListener.register();
 				BinderRedirector.cache = new BinderRedirector[redirectableInterfaces.length];
 			}
 			redirectionStateListener.usedRedirections |= (1L << id);
 		}
-		BinderRedirector rd;
+		BinderRedirector rd = null;
 		try {
-			rd = GmsCompatApp.iClientOfGmsCore2Gca().getBinderRedirector(id);
-		} catch (RemoteException e) {
-			throw GmsCompatApp.callFailed(e);
+			Object clientService = GmsCompatApp.iClientOfGmsCore2Gca();
+			if (clientService != null) {
+				java.lang.reflect.Method m = clientService.getClass().getMethod("getBinderRedirector", int.class);
+				m.setAccessible(true);
+				rd = (BinderRedirector) m.invoke(clientService, id);
+			}
+		} catch (java.lang.reflect.InvocationTargetException e) {
+			Throwable cause = e.getCause();
+			if (cause instanceof RemoteException) {
+				throw GmsCompatApp.callFailed((RemoteException) cause);
+			}
+		} catch (Throwable t) {
+			Log.e(TAG, "GMSCompatX: Reflective getBinderRedirector failed", t);
 		}
-		// all BinderRedirector fields are final, this is thread-safe
-		BinderRedirector.cache[id] = rd;
+		
+		if (rd != null && BinderRedirector.cache != null) {
+			BinderRedirector.cache[id] = rd;
+		}
 		return rd;
 	}
 
@@ -149,7 +190,6 @@ public final class BinderRedirector implements Parcelable {
 		public void onReceive(Context context, Intent intent) {
 			int id = intent.getIntExtra(KEY_REDIRECTION_ID, 0);
 			if ((usedRedirections & (1L << id)) != 0) {
-				// it's infeasible to enable / disable redirection without starting over
 				Log.d(TAG, "state of redirection (id " + id + ") changed, calling System.exit(0)");
 				System.exit(0);
 			}
