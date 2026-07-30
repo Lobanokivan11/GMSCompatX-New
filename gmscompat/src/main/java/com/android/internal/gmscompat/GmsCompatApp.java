@@ -66,7 +66,27 @@ public final class GmsCompatApp {
 
 		try {
 			IBinder rawBinder = getBinder(BINDER_IGms2Gca);
-			IGms2Gca iGms2Gca = IGms2Gca.Stub.asInterface(rawBinder);
+			IGms2Gca iGms2Gca = (IGms2Gca) java.lang.reflect.Proxy.newProxyInstance(
+    			IGms2Gca.class.getClassLoader(),
+			    new Class<?>[] { IGms2Gca.class },
+			    new java.lang.reflect.InvocationHandler() {
+			        @Override
+			        public Object invoke(Object proxy, java.lang.reflect.Method method, Object[] args) throws Throwable {
+            			try {
+                			java.lang.reflect.Method realMethod = rawBinder.getClass().getMethod(method.getName(), method.getParameterTypes());
+			                realMethod.setAccessible(true);
+            			    return realMethod.invoke(rawBinder, args);
+			            } catch (java.lang.reflect.InvocationTargetException e) {
+            			    throw e.getCause();
+            			} catch (NoSuchMethodException e) {
+			                Log.w("GmsCompat/Proxy", "Method " + method.getName() + " not found in firmware Binder. Skipping execution.");
+            			    if (method.getReturnType() == boolean.class) return false;
+			                if (method.getReturnType() == int.class) return 0;
+            			    return null;
+			            }
+        			}
+    			}
+			);
 			binderGms2Gca = iGms2Gca;
 			Object realProxy = null;
 			try {
