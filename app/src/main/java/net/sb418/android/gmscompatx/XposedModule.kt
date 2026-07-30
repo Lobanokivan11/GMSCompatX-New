@@ -66,18 +66,25 @@ class XposedModule : IXposedHookZygoteInit, IXposedHookLoadPackage {
 
 	private fun onApplicationLoad(param: LoadPackageParam) {
 		val packageName: String = param.packageName
-
 		val classNamesToInject: Array<String> = when (packageName) {
-			"app.grapheneos.gmscompat" -> arrayOf(
-				"com.android.internal.gmscompat.IClientOfGmsCore2Gca",
-				"com.android.internal.gmscompat.IClientOfGmsCore2Gca\$Stub",
-				"com.android.internal.gmscompat.IGms2Gca",
-				"com.android.internal.gmscompat.IGms2Gca\$Stub",
-				"com.android.internal.gmscompat.IGca2Gms",
-				"com.android.internal.gmscompat.GmsCompatConfig",
-				"com.android.internal.gmscompat.dynamite.server.IFileProxyService"
-			)
-			else -> emptyArray()
+			"app.grapheneos.gmscompat" -> {
+				try {
+					Class.forName("com.android.internal.gmscompat.IGms2Gca\$Stub", false, param.classLoader)
+					arrayOf(
+						"com.android.internal.gmscompat.IClientOfGmsCore2Gca",
+						"com.android.internal.gmscompat.IClientOfGmsCore2Gca\$Stub",
+						"com.android.internal.gmscompat.IGms2Gca",
+						"com.android.internal.gmscompat.IGms2Gca\$Stub",
+						"com.android.internal.gmscompat.IGca2Gms",
+						"com.android.internal.gmscompat.GmsCompatConfig",
+						"com.android.internal.gmscompat.dynamite.server.IFileProxyService"
+					)
+				} catch (e: ClassNotFoundException) {
+				Log.e(TAG, "GMSCompatX: System Classes of GmsCompat not found. skipping injection.")
+				emptyArray()
+				}
+			}
+		else -> emptyArray()
 		}
 
 		// inject classes into app

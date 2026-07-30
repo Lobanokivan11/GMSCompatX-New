@@ -19,17 +19,17 @@ object BinderProviderPatch {
     fun install(classLoader: ClassLoader) {
         try {
             val binderGms2GcaClass = Class.forName("app.grapheneos.gmscompat.BinderGms2Gca", false, classLoader)
+            val fileProxyServiceClass = Class.forName("com.android.internal.gmscompat.dynamite.server.IFileProxyService", false, classLoader)
             XposedHelpers.findAndHookMethod(
                 binderGms2GcaClass,
                 "connectGmsCore",
                 String::class.java,
                 IBinder::class.java,
-                "com.android.internal.gmscompat.dynamite.server.IFileProxyService",
+                fileProxyServiceClass,
                 object : XC_MethodHook() {
                     override fun beforeHookedMethod(param: MethodHookParam) {
                         try {
                             val processName = param.args[0] as? String
-                            val callerBinder = param.args[1] as? IBinder
                             val fileProxyService = param.args[2]
 
                             Log.w(TAG, "GMSCompatX: Intercepted connectGmsCore for process: $processName. Preventing AbstractMethodError.")
@@ -39,14 +39,14 @@ object BinderProviderPatch {
                             param.result = null 
                             
                         } catch (t: Throwable) {
-                            Log.e(TAG, "GMSCompatX: Error inside connectGmsCore hook hook", t)
+                            Log.e(TAG, "GMSCompatX: Error inside connectGmsCore hook", t)
                         }
                     }
                 }
             )
             Log.d(TAG, "GMSCompatX: High-level connectGmsCore patch installed successfully!")
         } catch (e: ClassNotFoundException) {
-            Log.w(TAG, "GMSCompatX: BinderGms2Gca not found in this ClassLoader. Target package context mismatch.")
+            Log.w(TAG, "GMSCompatX: Reuired classes of GmsCompat Not found. Skipping Hook.")
         } catch (t: Throwable) {
             Log.e(TAG, "Failed to install primary BinderGms2Gca patch", t)
         }
