@@ -56,25 +56,18 @@ public final class GmsCompatApp {
 	@SuppressWarnings("FieldCanBeLocal")
 	private static FileProxyService dynamiteFileProxyService;
 
-	private static Object binderGms2Gca;
+	private static IGms2Gca binderGms2Gca;
 
 	public static final String KEY_BINDER = "binder";
 
-	static GmsCompatConfig connect(Context ctx, String processName) {
+    static GmsCompatConfig connect(Context ctx, String processName) {
 		BinderGca2Gms gca2Gms = new BinderGca2Gms();
 		binderGca2Gms = gca2Gms;
 
 		try {
 			IBinder rawBinder = getBinder(BINDER_IGms2Gca);
-			Object iGms2Gca = null;
-			try {
-				Class<?> stubClass = Class.forName("com.android.internal.gmscompat.IGms2Gca$Stub");
-				java.lang.reflect.Method asInterfaceMethod = stubClass.getMethod("asInterface", IBinder.class);
-				iGms2Gca = asInterfaceMethod.invoke(null, rawBinder);
-				binderGms2Gca = iGms2Gca;
-			} catch (Exception e) {
-				Log.e(TAG, "Failed to resolve old IGms2Gca via reflection", e);
-			}
+			IGms2Gca iGms2Gca = IGms2Gca.Stub.asInterface(rawBinder);
+			binderGms2Gca = iGms2Gca;
 			Object realProxy = null;
 			try {
 				Class<?> proxyClass = Class.forName("com.android.internal.gmscompat.IGms2Gca$Stub$Proxy");
@@ -128,7 +121,7 @@ public final class GmsCompatApp {
 	}
 
 
-	public static Object iGms2Gca() {
+	public static IGms2Gca iGms2Gca() {
 		return binderGms2Gca;
 	}
 
@@ -225,91 +218,34 @@ public final class GmsCompatApp {
 
 	public static String getString(String ns, String key) {
 		try {
-			Object service = binderGms2Gca;
-			if (service == null) {
-				Log.e(TAG, "GmsCompatX: binderGms2Gca instance is null. Cannot getString.");
-				return null;
-			}
-			java.lang.reflect.Method m = service.getClass().getMethod(
-				"privSettingsGetString",
-				String.class,
-				String.class
-			);
-			m.setAccessible(true);
-			return (String) m.invoke(service, ns, key);
-		} catch (java.lang.reflect.InvocationTargetException e) {
-			Throwable cause = e.getCause();
-			if (cause instanceof RemoteException) {
-				throw callFailed((RemoteException) cause);
-			}
-			throw new RuntimeException("Exception inside privSettingsGetString", cause);
-		} catch (Throwable t) {
-			Log.e(TAG, "GMSCompatX: Reflective call to privSettingsGetString failed", t);
-			return null;
+			return iGms2Gca().privSettingsGetString(ns, key);
+		} catch (RemoteException e) {
+			throw callFailed(e);
 		}
 	}
-
 
 	public static boolean putString(String ns, String key, @Nullable String value) {
 		try {
-			Object service = iGms2Gca();
-			if (service == null) {
-				Log.e(TAG, "GmsCompatX: binderGms2Gca instance is null. Cannot putString.");
-				return false;
-			}
-			java.lang.reflect.Method method = service.getClass().getMethod(
-				"privSettingsPutString",
-				String.class,
-				String.class,
-				String.class
-			);
-        
-			method.setAccessible(true);
-			return (boolean) method.invoke(service, ns, key, value);
-
-		} catch (java.lang.reflect.InvocationTargetException e) {
-			Throwable cause = e.getCause();
-			if (cause instanceof RemoteException) {
-				throw callFailed((RemoteException) cause);
-			}
-			throw new RuntimeException("Exception inside privSettingsPutString", cause);
-		} catch (Throwable t) {
-			Log.e(TAG, "GMSCompatX: Reflective call to privSettingsPutString failed", t);
-			return false;
+			return iGms2Gca().privSettingsPutString(ns, key, value);
+		} catch (RemoteException e) {
+			throw callFailed(e);
 		}
 	}
-
 
 	public static boolean setProperties(@NonNull DeviceConfig.Properties props) {
 		String[] keys = props.getKeyset().toArray(new String[0]);
 		String[] values = new String[keys.length];
+
 		for (int i = 0; i < keys.length; ++i) {
 			values[i] = props.getString(keys[i], null);
 		}
+
 		String ns = deviceConfigNamespace(props.getNamespace());
+
 		try {
-			Object service = iGms2Gca();
-			if (service == null) {
-				Log.e(TAG, "GmsCompatX: binderGms2Gca instance is null. Cannot setProperties.");
-				return false;
-			}
-			java.lang.reflect.Method method = service.getClass().getMethod(
-				"privSettingsPutStrings",
-				String.class,
-				String[].class,
-				String[].class
-			);
-			method.setAccessible(true);
-			return (boolean) method.invoke(service, ns, keys, values);
-		} catch (java.lang.reflect.InvocationTargetException e) {
-			Throwable cause = e.getCause();
-			if (cause instanceof RemoteException) {
-				throw callFailed((RemoteException) cause);
-			}
-			throw new RuntimeException("Exception inside privSettingsPutStrings", cause);
-		} catch (Throwable t) {
-			Log.e(TAG, "GMSCompatX: Reflective call to privSettingsPutStrings failed", t);
-			return false;
+			return iGms2Gca().privSettingsPutStrings(ns, keys, values);
+		} catch (RemoteException e) {
+			throw callFailed(e);
 		}
 	}
 
@@ -354,30 +290,9 @@ public final class GmsCompatApp {
 			Refine.<ContentObserverHidden>unsafeCast(observer).getContentObserver();
 
 		try {
-			Object service = iGms2Gca();
-			if (service == null) {
-				Log.e(TAG, "GmsCompatX: binderGms2Gca instance is null. Cannot registerObserver.");
-				return false;
-			}
-			Class<?> iObserverClass = Class.forName("android.database.IContentObserver");
-			java.lang.reflect.Method method = service.getClass().getMethod(
-				"privSettingsRegisterObserver",
-				String.class,
-				String.class,
-				iObserverClass
-			);
-			method.setAccessible(true);
-			method.invoke(service, ns, key, iObserver);
-
-		} catch (java.lang.reflect.InvocationTargetException e) {
-			Throwable cause = e.getCause();
-			if (cause instanceof RemoteException) {
-				throw callFailed((RemoteException) cause);
-			}
-			throw new RuntimeException("Exception inside privSettingsRegisterObserver", cause);
-		} catch (Throwable t) {
-			Log.e(TAG, "GMSCompatX: Reflective call to privSettingsRegisterObserver failed", t);
-			return false;
+			iGms2Gca().privSettingsRegisterObserver(ns, key, iObserver);
+		} catch (RemoteException e) {
+			throw callFailed(e);
 		}
 
 		synchronized (registeredContentObservers) {
@@ -400,30 +315,10 @@ public final class GmsCompatApp {
 			Refine.<ContentObserverHidden>unsafeCast(observer).getContentObserver();
 
 		try {
-			Object service = iGms2Gca();
-			if (service == null) {
-				Log.e(TAG, "GmsCompatX: binderGms2Gca instance is null. Cannot unregisterObserver.");
-				return false;
-			}
-			Class<?> iObserverClass = Class.forName("android.database.IContentObserver");
-			java.lang.reflect.Method method = service.getClass().getMethod(
-				"privSettingsUnregisterObserver",
-				iObserverClass
-			);
-
-			method.setAccessible(true);
-			method.invoke(service, iObserver);
-		} catch (java.lang.reflect.InvocationTargetException e) {
-			Throwable cause = e.getCause();
-			if (cause instanceof RemoteException) {
-				throw callFailed((RemoteException) cause);
-			}
-			throw new RuntimeException("Exception inside privSettingsUnregisterObserver", cause);
-		} catch (Throwable t) {
-			Log.e(TAG, "GMSCompatX: Reflective call to privSettingsUnregisterObserver failed", t);
-			return false;
+			iGms2Gca().privSettingsUnregisterObserver(iObserver);
+		} catch (RemoteException e) {
+			throw callFailed(e);
 		}
-
 		return true;
 	}
 
