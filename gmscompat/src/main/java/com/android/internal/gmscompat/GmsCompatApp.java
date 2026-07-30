@@ -66,8 +66,15 @@ public final class GmsCompatApp {
 
 		try {
 			IBinder rawBinder = getBinder(BINDER_IGms2Gca);
-			IGms2Gca iGms2Gca = IGms2Gca.Stub.asInterface(rawBinder);
-			binderGms2Gca = iGms2Gca;
+			Object iGms2Gca = null;
+			try {
+				Class<?> stubClass = Class.forName("com.android.internal.gmscompat.IGms2Gca$Stub");
+				java.lang.reflect.Method asInterfaceMethod = stubClass.getMethod("asInterface", IBinder.class);
+				iGms2Gca = asInterfaceMethod.invoke(null, rawBinder);
+				binderGms2Gca = iGms2Gca;
+			} catch (Exception e) {
+				Log.e(TAG, "Failed to resolve old IGms2Gca via reflection", e);
+			}
 			Object realProxy = null;
 			try {
 				Class<?> proxyClass = Class.forName("com.android.internal.gmscompat.IGms2Gca$Stub$Proxy");
