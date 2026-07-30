@@ -14,7 +14,6 @@ import de.robv.android.xposed.XposedHelpers
 
 object BinderProviderPatch {
     private const val TAG = "GMSCompatX.BinderProviderPatch"
-    private const val KEY_BINDER = "binder"
 
     fun install(classLoader: ClassLoader) {
         try {
@@ -29,10 +28,9 @@ object BinderProviderPatch {
                             runCatching {
                                 XposedHelpers.setStaticObjectField(binderGms2GcaClass, "dynamiteFileProxyService", fileProxyService)
                             }.onFailure {
-                                Log.w(TAG, "GMSCompatX: Could not set dynamiteFileProxyService (field might be removed)")
+                                Log.w(TAG, "GMSCompatX: Could not set dynamiteFileProxyService field.")
                             }
                         }
-                        
                         param.result = null 
                         
                     } catch (t: Throwable) {
@@ -42,24 +40,9 @@ object BinderProviderPatch {
             })
             Log.d(TAG, "GMSCompatX: High-level connectGmsCore patch installed successfully via hookAllMethods!")
         } catch (e: ClassNotFoundException) {
-            Log.w(TAG, "GMSCompatX: Required BinderGms2Gca class not found. Skipping Hook.")
+            Log.w(TAG, "GMSCompatX: app.grapheneos.gmscompat.BinderGms2Gca not found. Skipping Hook.")
         } catch (t: Throwable) {
             Log.e(TAG, "Failed to install primary BinderGms2Gca patch", t)
-        }
-        try {
-            val providerClass = Class.forName("app.grapheneos.gmscompat.BinderProvider", false, classLoader)
-            XposedBridge.hookAllMethods(providerClass, "call", object : XC_MethodHook() {
-                override fun afterHookedMethod(param: MethodHookParam) {
-                    val resultBundle = param.result as? Bundle ?: return
-                    val binder = resultBundle.getBinder(KEY_BINDER)
-                    if (binder != null) {
-                        val methodArg = param.args.getOrNull(1) as? String ?: "0"
-                        Log.d(TAG, "Successfully processed original Binder check from GmsCompat for type: $methodArg")
-                    }
-                }
-            })
-        } catch (t: Throwable) {
-            Log.e(TAG, "Failed to run secondary BinderProvider check", t)
         }
     }
 }
