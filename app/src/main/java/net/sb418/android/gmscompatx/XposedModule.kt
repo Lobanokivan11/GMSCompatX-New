@@ -31,7 +31,7 @@ class XposedModule : IXposedHookZygoteInit, IXposedHookLoadPackage {
 	override fun handleLoadPackage(param: LoadPackageParam) {
 		runCatching {
 			if (!param.isFirstApplication)
-				return
+				return@runCatching
 			if (param.packageName == "app.grapheneos.gmscompat") {
 				runCatching {
 					val patchClass = Class.forName("net.sb418.android.gmscompatx.patches.BinderProviderPatch")
@@ -73,6 +73,7 @@ class XposedModule : IXposedHookZygoteInit, IXposedHookLoadPackage {
 					}
 				}
 			}
+			Unit
 		}.onFailure { t ->
 			Log.e(TAG, "GMSCompatX: Top-level handleLoadPackage trapped an error safely.", t)
 		}
