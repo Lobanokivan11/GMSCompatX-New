@@ -79,14 +79,12 @@ class XposedModule : IXposedHookZygoteInit, IXposedHookLoadPackage {
 						"app.grapheneos.gmscompat.Redirections"
 					)
 				}.getOrElse { e ->
-					Log.e(TAG, "GMSCompatX: New GmsCompat structures not found. Skipping injection.", e)
+					Log.e(TAG, "GMSCompatX: New GmsCompat structures not found. skipping injection.", e)
 					emptyArray()
 				}
 			}
 		else -> emptyArray()
 		}
-
-		// inject classes into app
 		if (classNamesToInject.isNotEmpty()) {
 			val resolvedClasses = mutableListOf<Class<*>>()
 			for (className in classNamesToInject) {
@@ -103,8 +101,6 @@ class XposedModule : IXposedHookZygoteInit, IXposedHookLoadPackage {
 				injectAppClassLoader(param.classLoader, resolvedClasses.toTypedArray())
 			}
 		}
-
-		// apply system app patches (if needed)
 		try {
 			SystemAppPatcher.getPatchsetFor(packageName)?.install()
 		} catch (t: Throwable) {
