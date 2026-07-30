@@ -19,34 +19,30 @@ object BinderProviderPatch {
     fun install(classLoader: ClassLoader) {
         try {
             val binderGms2GcaClass = Class.forName("app.grapheneos.gmscompat.BinderGms2Gca", false, classLoader)
-            val fileProxyServiceClass = Class.forName("com.android.internal.gmscompat.dynamite.server.IFileProxyService", false, classLoader)
-            XposedHelpers.findAndHookMethod(
-                binderGms2GcaClass,
-                "connectGmsCore",
-                String::class.java,
-                IBinder::class.java,
-                fileProxyServiceClass,
-                object : XC_MethodHook() {
-                    override fun beforeHookedMethod(param: MethodHookParam) {
-                        try {
-                            val processName = param.args[0] as? String
-                            val fileProxyService = param.args[2]
-
-                            Log.w(TAG, "GMSCompatX: Intercepted connectGmsCore for process: $processName. Preventing AbstractMethodError.")
-                            if (fileProxyService != null) {
+            XposedBridge.hookAllMethods(binderGms2GcaClass, "connectGmsCore", object : XC_MethodHook() {
+                override fun beforeHookedMethod(param: MethodHookParam) {
+                    try {
+                        val processName = param.args.getOrNull(0) as? String
+                        Log.w(TAG, "GMSCompatX: Intercepted connectGmsCore for process: $processName. Preventing AbstractMethodError.")
+                        val fileProxyService = param.args.getOrNull(2)
+                        if (fileProxyService != null) {
+                            runCatching {
                                 XposedHelpers.setStaticObjectField(binderGms2GcaClass, "dynamiteFileProxyService", fileProxyService)
+                            }.onFailure {
+                                Log.w(TAG, "GMSCompatX: Could not set dynamiteFileProxyService (field might be removed)")
                             }
-                            param.result = null 
-                            
-                        } catch (t: Throwable) {
-                            Log.e(TAG, "GMSCompatX: Error inside connectGmsCore hook", t)
                         }
+                        
+                        param.result = null 
+                        
+                    } catch (t: Throwable) {
+                        Log.e(TAG, "GMSCompatX: Error inside connectGmsCore hook", t)
                     }
                 }
-            )
-            Log.d(TAG, "GMSCompatX: High-level connectGmsCore patch installed successfully!")
+            })
+            Log.d(TAG, "GMSCompatX: High-level connectGmsCore patch installed successfully via hookAllMethods!")
         } catch (e: ClassNotFoundException) {
-            Log.w(TAG, "GMSCompatX: Reuired classes of GmsCompat Not found. Skipping Hook.")
+            Log.w(TAG, "GMSCompatX: Required BinderGms2Gca class not found. Skipping Hook.")
         } catch (t: Throwable) {
             Log.e(TAG, "Failed to install primary BinderGms2Gca patch", t)
         }
