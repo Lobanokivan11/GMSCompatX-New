@@ -88,18 +88,31 @@ class XposedModule : IXposedHookZygoteInit, IXposedHookLoadPackage {
 	private fun onApplicationLoad(param: LoadPackageParam) {
 		val packageName: String = param.packageName
 		if (packageName == "app.grapheneos.gmscompat") {
-			runCatching {
-				val binderGms2GcaClass = Class.forName("app.grapheneos.gmscompat.BinderGms2Gca", false, param.classLoader)
-				Log.d(TAG, "GMSCompatX: Found new GmsCompat structures. Installing runtime method hooks...")
-				net.sb418.android.gmscompatx.patches.BinderProviderPatch.install(param.classLoader)
-			}.getOrElse { e ->
-				Log.e(TAG, "GMSCompatX: BinderGms2Gca not found. Falling back or skipping.", e)
+			try {
+				XposedHelpers.findAndHookMethod(
+					"android.app.Application",
+					param.classLoader,
+					"onCreate",
+					object : de.robv.android.xposed.XC_MethodHook() {
+						override fun beforeHookedMethod(methodParam: MethodHookParam) {
+							runCatching {
+								Class.forName("app.grapheneos.gmscompat.BinderGms2Gca", false, param.classLoader)
+								Log.d(TAG, "GMSCompatX: Application initialized. Installing runtime method hooks...")
+								net.sb418.android.gmscompatx.patches.BinderProviderPatch.install(param.classLoader)
+							}.getOrElse {
+								Log.e(TAG, "GMSCompatX: Safe initialization failed. Classes not found in this ROM.")
+							}
+						}
+					}
+				)
+			} catch (t: Throwable) {
+				Log.e(TAG, "GMSCompatX: Failed to hook Application.onCreate")
 			}
 		}
 		try {
 			SystemAppPatcher.getPatchsetFor(packageName)?.install()
 		} catch (t: Throwable) {
-			Log.e(TAG, "GMSCompatX: Failed to install SystemAppPatcher for $packageName", t)
+			Log.e(TAG, "GMSCompatX: Failed to install SystemAppPatcher for $packageName")
 		}
 	}
 
