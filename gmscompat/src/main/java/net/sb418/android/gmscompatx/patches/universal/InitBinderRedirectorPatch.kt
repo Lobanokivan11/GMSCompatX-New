@@ -32,6 +32,14 @@ internal object InitBinderRedirectorPatch : IPatch {
 	private var isClassChecked = false
 
 	override fun install() {
+		try {
+			binderRedirectorClass = Class.forName("com.android.internal.gmscompat.BinderRedirector", false, javaClass.classLoader)
+			isClassChecked = true
+		} catch (e: Throwable) {
+			Log.w(TAG, "GMSCompatX: BinderRedirector class not present in this ROM. Disabling patch completely.")
+			isClassChecked = true
+			return
+		}
 		val contextImpl = XposedHelpers.findClass("android.app.ContextImpl", null)
 
 		XposedBridge.hookMethod(
@@ -92,15 +100,6 @@ internal object InitBinderRedirectorPatch : IPatch {
 			val service = param.args[0] as Intent
 
 			if (currentlyBindingServices.contains(CtxIntentEntry(ctx, service))) {
-				if (!isClassChecked) {
-					try {
-						binderRedirectorClass = Class.forName("com.android.internal.gmscompat.BinderRedirector", false, ctx.classLoader)
-					} catch (e: ClassNotFoundException) {
-						Log.w(TAG, "GMSCompatX: com.android.internal.gmscompat.BinderRedirector not found. Skipping proxy call.")
-					} finally {
-						isClassChecked = true
-					}
-				}
 				binderRedirectorClass?.let { targetClass ->
 					try {
 						XposedHelpers.callStaticMethod(targetClass, "maybeInit", service)
