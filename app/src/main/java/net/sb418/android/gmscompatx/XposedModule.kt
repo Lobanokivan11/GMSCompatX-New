@@ -87,47 +87,15 @@ class XposedModule : IXposedHookZygoteInit, IXposedHookLoadPackage {
 
 	private fun onApplicationLoad(param: LoadPackageParam) {
 		val packageName: String = param.packageName
-		val classNamesToInject: Array<String> = when (packageName) {
-			"app.grapheneos.gmscompat" -> {
-				runCatching {
-					Class.forName("app.grapheneos.gmscompat.BinderGms2Gca", false, param.classLoader)
-					arrayOf(
-						"app.grapheneos.gmscompat.BinderGms2Gca",
-						"app.grapheneos.gmscompat.BinderGms2Gca\$DeathRecipient",
-						"app.grapheneos.gmscompat.BinderClientOfGmsCore2Gca",
-						"app.grapheneos.gmscompat.BinderProvider",
-						"app.grapheneos.gmscompat.Notifications",
-						"app.grapheneos.gmscompat.Redirections"
-					)
-				}.getOrElse { e ->
-					Log.e(TAG, "GMSCompatX: New GmsCompat structures not found. skipping injection.", e)
-					emptyArray()
-				}
-			}
-		else -> emptyArray()
-		}
-
-		if (classNamesToInject.isNotEmpty()) {
-			val resolvedClasses = mutableListOf<Class<*>>()
-			for (className in classNamesToInject) {
-				try {
-					val clazz = Class.forName(className, false, param.classLoader)
-					resolvedClasses.add(clazz)
-				} catch (e: Throwable) {
-					Log.w(TAG, "GMSCompatX: Failed to resolve class for injection: $className")
-				}
-			}
-
-			if (resolvedClasses.isNotEmpty()) {
-				Log.d(TAG, "Injecting ${resolvedClasses.size} classes into $packageName")
-				runCatching {
-					injectAppClassLoader(param.classLoader, resolvedClasses.toTypedArray())
-				}.onFailure { t ->
-					Log.e(TAG, "GMSCompatX: Class injection failed for $packageName", t)
-				}
+		if (packageName == "app.grapheneos.gmscompat") {
+			runCatching {
+				val binderGms2GcaClass = Class.forName("app.grapheneos.gmscompat.BinderGms2Gca", false, param.classLoader)
+				Log.d(TAG, "GMSCompatX: Found new GmsCompat structures. Installing runtime method hooks...")
+				net.sb418.android.gmscompatx.patches.BinderProviderPatch.install(param.classLoader)
+			}.getOrElse { e ->
+				Log.e(TAG, "GMSCompatX: BinderGms2Gca not found. Falling back or skipping.", e)
 			}
 		}
-
 		try {
 			SystemAppPatcher.getPatchsetFor(packageName)?.install()
 		} catch (t: Throwable) {
