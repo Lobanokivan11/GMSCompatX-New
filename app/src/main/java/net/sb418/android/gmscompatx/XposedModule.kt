@@ -29,7 +29,11 @@ class XposedModule : IXposedHookZygoteInit, IXposedHookLoadPackage {
 
 	override fun initZygote(startupParam: StartupParam) {
 		// install universal patches
-		UniversalPatches.install()
+		try {
+			UniversalPatches.install()
+		} catch (t: Throwable) {
+			Log.e(TAG, "GMSCompatX: Failed to install UniversalPatches", t)
+		}
 	}
 
 	override fun handleLoadPackage(param: LoadPackageParam) {
@@ -38,14 +42,26 @@ class XposedModule : IXposedHookZygoteInit, IXposedHookLoadPackage {
 		// ignore if we've already patched this process
 		if (!param.isFirstApplication)
 			return
-		// apply gmscompat patch to fix error
-		if (param.packageName == "app.grapheneos.gmscompat")
-			net.sb418.android.gmscompatx.patches.BinderProviderPatch.install(param.classLoader)
+		if (param.packageName == "app.grapheneos.gmscompat") {
+			runCatching {
+				net.sb418.android.gmscompatx.patches.BinderProviderPatch.install(param.classLoader)
+			}.onFailure { e ->
+				Log.e(TAG, "GMSCompatX: Critical error during BinderProviderPatch installation. Skipping patch.", e)
+			}
+		}
+
 		// initialize patch context
-		PatchContext.packageName = param.packageName
-		PatchContext.processName = param.processName
-		if (!PatchContext.procInfoInitialized.compareAndSet(false, true))
-			throw IllegalStateException("PatchContext app info already initialized!")
+		try {
+			PatchContext.packageName = param.packageName
+			PatchContext.processName = param.processName
+			if (!PatchContext.procInfoInitialized.compareAndSet(false, true)) {
+				Log.w(TAG, "PatchContext app info already initialized for ${param.packageName}")
+				return
+			}
+		} catch (t: Throwable) {
+			Log.e(TAG, "GMSCompatX: Failed to initialize PatchContext", t)
+			return
+		}
 
 		if (param.packageName == "android") {
 			onSystemServerLoad(param)
@@ -58,10 +74,15 @@ class XposedModule : IXposedHookZygoteInit, IXposedHookLoadPackage {
 		// rebase our class loader onto the system_server's, so we can access its classes
 		if (!ClassLoaderUtils.rebaseClassLoader(javaClass.classLoader!!, param.classLoader)) {
 			Log.wtf(TAG, "Failed to rebase our class loader onto the system_server class loader!")
+			return
 		}
 
 		// install system_server patches
-		SystemServerPatches.install()
+		try {
+			SystemServerPatches.install()
+		} catch (t: Throwable) {
+			Log.e(TAG, "GMSCompatX: Failed to install SystemServerPatches", t)
+		}
 	}
 
 	private fun onApplicationLoad(param: LoadPackageParam) {
@@ -85,6 +106,7 @@ class XposedModule : IXposedHookZygoteInit, IXposedHookLoadPackage {
 			}
 		else -> emptyArray()
 		}
+
 		if (classNamesToInject.isNotEmpty()) {
 			val resolvedClasses = mutableListOf<Class<*>>()
 			for (className in classNamesToInject) {
@@ -98,9 +120,14 @@ class XposedModule : IXposedHookZygoteInit, IXposedHookLoadPackage {
 
 			if (resolvedClasses.isNotEmpty()) {
 				Log.d(TAG, "Injecting ${resolvedClasses.size} classes into $packageName")
-				injectAppClassLoader(param.classLoader, resolvedClasses.toTypedArray())
+				runCatching {
+					injectAppClassLoader(param.classLoader, resolvedClasses.toTypedArray())
+				}.onFailure { t ->
+					Log.e(TAG, "GMSCompatX: Class injection failed for $packageName", t)
+				}
 			}
 		}
+
 		try {
 			SystemAppPatcher.getPatchsetFor(packageName)?.install()
 		} catch (t: Throwable) {
