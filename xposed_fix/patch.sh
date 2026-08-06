@@ -17,7 +17,7 @@ echo "Unpacking GmsCompat"
 java -jar apktool.jar d base.apk -o src
 
 echo "Applying fix patch ..."
-patch --directory=src/ --strip=1 < xposed_fix.patch
+patch --directory=src/ -t -s -p1 < xposed_fix.patch
 
 echo "Rebuilding APK ..."
 java -jar apktool.jar b src -o patched.apk
@@ -28,6 +28,7 @@ apksigner sign --ks-key-alias lob --ks sign.keystore --ks-pass pass:369852 --key
 
 
 rm patched.apk
+rm -rf src
 mv patched_align.apk fixed.apk
 echo "Patching complete there is fixed.apk file for install via adb"
 echo "install: adb install fixed.apk"
