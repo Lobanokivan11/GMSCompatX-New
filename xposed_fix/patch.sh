@@ -14,10 +14,10 @@ if [ -d "src" ]; then
 fi
 
 echo "Unpacking GmsCompat"
-java -jar apktool.jar d base.apk -o src
+java -jar apktool.jar d -r base.apk -o src
 
-echo "Applying fix patch ..."
-patch --directory=src/ -t -s -p1 < xposed_fix.patch
+echo "Applying fix patch (you need to input file manually)..."
+patch -p1 < xposed_fix.patch
 
 echo "Rebuilding APK ..."
 java -jar apktool.jar b src -o patched.apk
@@ -28,6 +28,7 @@ apksigner sign --ks-key-alias lob --ks sign.keystore --ks-pass pass:369852 --key
 
 
 rm patched.apk
+rm patched_align.apk.idsig
 rm -rf src
 mv patched_align.apk fixed.apk
 echo "Patching complete there is fixed.apk file for install via adb"
