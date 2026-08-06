@@ -16,6 +16,11 @@ fi
 echo "Unpacking GmsCompat"
 java -jar apktool.jar d -r base.apk -o src
 
+
+echo "Files Needed for input on diff"
+ls src/smali/app/grapheneos/gmscompat/BinderClientOfGmsCore2Gca.smali
+ls src/smali/app/grapheneos/gmscompat/BinderGms2Gca.smali
+
 echo "Applying fix patch (you need to input file manually)..."
 patch -p1 < xposed_fix.patch
 
